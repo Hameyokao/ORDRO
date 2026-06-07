@@ -1,0 +1,77 @@
+ORDRO - Deploying to Streamlit Community Cloud
+==============================================
+
+The "Unable to deploy" message just means your code isn't on GitHub yet.
+Streamlit Community Cloud can only run apps that live in a GitHub repository.
+This folder is already prepared as a Git repository, so you only need to
+connect it to GitHub and push.
+
+
+PLEASE READ FIRST - two important things about free cloud hosting
+-----------------------------------------------------------------
+1. DATA DOES NOT PERMANENTLY SAVE on Streamlit Community Cloud.
+   The free cloud uses temporary storage. The app runs perfectly, but any
+   new sales, customers, products, or uploaded photos can be WIPED every time
+   the app restarts (after inactivity, a reboot, or a redeploy).
+   - Fine for DEMOS / showing the app to someone.
+   - NOT safe as your real shop's live till - you could lose data.
+   - To run it as a real POS with permanent data you need an external
+     database (e.g. free Postgres from Supabase or Neon). I can convert the
+     app to use one - just ask. For real daily use, running it on your own
+     computer (see START_HERE.txt) keeps your data safe on your machine.
+
+2. THE DEPLOYED APP IS PUBLIC by default.
+   Anyone with the link could open it. After deploying, in the Streamlit Cloud
+   app settings you can restrict access to specific email addresses. Also
+   change the default passwords (Settings -> User Management) right away.
+
+   The login/database file is NOT uploaded to GitHub (ignored on purpose), so
+   the deployed app starts fresh with the default logins:
+       Administrator / admin123   .   admin / admin123
+       staff / staff123           .   delivery / delivery123
+
+
+STEP 1 - Create a free GitHub account (skip if you have one)
+------------------------------------------------------------
+Go to https://github.com and sign up.
+
+
+STEP 2 - Put this code on GitHub
+--------------------------------
+EASIEST WAY (no commands - use the website):
+  1. On GitHub, click "+" (top right) -> "New repository".
+  2. Name it e.g.  ordro-pos . Choose Private (recommended). Click
+     "Create repository".
+  3. On the new repo page, click "uploading an existing file".
+  4. Open this folder on your computer, select ALL files and folders inside it
+     (app.py, components, pages_app, assets, requirements.txt, etc.) and drag
+     them into the browser upload area.
+  5. Click "Commit changes".
+
+WITH GIT (if you have Git installed - this folder is already a repo):
+  Open a terminal in this folder and run, replacing YOURNAME/ordro-pos:
+       git remote add origin https://github.com/YOURNAME/ordro-pos.git
+       git branch -M main
+       git push -u origin main
+
+
+STEP 3 - Deploy on Streamlit Community Cloud
+--------------------------------------------
+  1. Go to https://share.streamlit.io and sign in with GitHub.
+  2. Click "Create app" (or "New app") -> "Deploy a public app from GitHub".
+  3. Fill in:
+       Repository:      YOURNAME/ordro-pos
+       Branch:          main
+       Main file path:  app.py
+  4. Click "Deploy". First build takes a couple of minutes while it installs
+     the packages in requirements.txt. Your app URL will then be live.
+
+If it ever fails to build, open the deploy logs (right side) and send me the
+red error text - that is usually a one-line fix in requirements.txt.
+
+
+Files Streamlit Cloud uses (already set up for you)
+---------------------------------------------------
+  app.py                  -> the main file path you enter in step 3
+  requirements.txt        -> the Python packages it installs
+  .streamlit/config.toml  -> app settings

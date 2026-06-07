@@ -1,0 +1,60 @@
+ORDRO — How to run on Windows
+=============================
+
+(The old run_app.bat was removed because Windows blocks zip files that
+contain .bat scripts. You can run the app with one short command instead,
+or recreate the .bat yourself — see the bottom of this file.)
+
+
+FIRST TIME ONLY — install the requirements
+------------------------------------------
+1. Open the folder that contains app.py (this folder) in File Explorer.
+2. Click the address bar, type:  cmd   and press Enter.
+   (A black Command Prompt window opens in this folder.)
+3. Type this and press Enter:
+
+       pip install -r requirements.txt
+
+
+EVERY TIME — start the app
+--------------------------
+In that same Command Prompt window (opened in this folder), type:
+
+       python -m streamlit run app.py
+
+Your web browser will open the app automatically. To stop it, go back to
+the Command Prompt window and press Ctrl + C.
+
+If the "python" command isn't found, install Python 3.9+ from python.org
+and during setup tick "Add Python to PATH".
+
+Alternative launcher (does the same thing):
+
+       python start_ordro.py
+
+
+Default logins
+--------------
+  Administrator : Administrator / admin123   (full control)
+  Admin         : admin / admin123
+  Staff         : staff / staff123
+  Delivery      : delivery / delivery123
+
+Please change these after first sign-in (Settings -> User Management).
+
+
+If Windows still shows a warning on the zip
+-------------------------------------------
+Before extracting: right-click the .zip file -> Properties ->
+at the bottom tick "Unblock" -> OK. Then extract normally.
+
+
+Want the double-click .bat back? (optional)
+-------------------------------------------
+Open Notepad, paste the 4 lines below, and Save As  run_app.bat
+(set "Save as type" to "All Files" so it doesn't become run_app.bat.txt):
+
+    @echo off
+    cd /d "%~dp0"
+    python -m streamlit run app.py
+    pause
