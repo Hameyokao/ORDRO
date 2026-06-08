@@ -1,14 +1,25 @@
 from datetime import datetime
 import streamlit as st
+import streamlit.components.v1 as components
 from components.database import query_df, execute, get_setting, fmt_date
 from components.theme import hero
 from components.auth import has_access
 from components.ui import fixed_image, save_uploaded_file
 from components.payments import (
     clean, add_payment_verification, render_verification_previews,
-    payment_slip_pdf, delivery_sticker_pdf,
+    payment_slip_html, delivery_sticker_html,
 )
 from components.activity import log
+
+
+@st.dialog("Payment slip", width="large")
+def _slip_dialog(order, items, currency):
+    components.html(payment_slip_html(order, items, currency), height=900, scrolling=True)
+
+
+@st.dialog("Delivery sticker", width="large")
+def _sticker_dialog(order, items, currency):
+    components.html(delivery_sticker_html(order, items, currency), height=640, scrolling=True)
 
 STATUSES = ["Pending", "Preparing", "Ready", "Out for Delivery", "Delivered", "Completed", "Cancelled"]
 PAYMENTS = ["Unpaid", "Paid", "Partially Paid"]
@@ -214,15 +225,13 @@ def render_order_card(order, mode="delivery"):
     if not items.empty:
         da, db = st.columns(2)
         with da:
-            st.download_button("⬇ Payment Slip",
-                data=payment_slip_pdf(order, items, currency),
-                file_name=f"slip_{order['order_no']}.pdf", mime="application/pdf",
-                key=f"slip_{order_id}_{mode}", use_container_width=True)
+            if st.button("🧾 Payment Slip", key=f"slip_{order_id}_{mode}",
+                         use_container_width=True):
+                _slip_dialog(order, items, currency)
         with db:
-            st.download_button("📦 Delivery Sticker",
-                data=delivery_sticker_pdf(order, items, currency),
-                file_name=f"sticker_{order['order_no']}.pdf", mime="application/pdf",
-                key=f"stk_{order_id}_{mode}", use_container_width=True)
+            if st.button("📦 Delivery Sticker", key=f"stk_{order_id}_{mode}",
+                         use_container_width=True):
+                _sticker_dialog(order, items, currency)
 
     st.markdown("<div style='margin-bottom:24px;'></div>", unsafe_allow_html=True)
 

@@ -499,3 +499,183 @@ def delivery_sticker_pdf(order, items, currency=None):
 # ─── Backwards-compatible aliases ─────────────────────────────────────────────
 payment_slip_jpg    = payment_slip_pdf
 delivery_sticker_jpg = delivery_sticker_pdf
+
+
+# ─── HTML Payment Slip & Delivery Sticker (on-screen preview + Print) ─────────
+# These render as clean HTML inside the app (st.components.v1.html) and include
+# their own "Print" button. Built from real order data — no extra fields needed.
+
+def _esc(v):
+    s = "" if v is None else str(v)
+    if s.strip().lower() == "nan":
+        s = ""
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _doc_branding():
+    from .database import get_setting
+    from .theme import logo_data_uri, COLORS
+    name   = get_setting("business_name", "Your Business")
+    accent = COLORS.get(get_setting("accent_color", "Royal Blue"), "#2563eb")
+    logo   = logo_data_uri(get_setting("business_logo", ""))
+    if logo:
+        logo_html = (f'<img src="{logo}" alt="logo" '
+                     f'style="height:54px;width:auto;max-width:180px;object-fit:contain;border-radius:8px;">')
+    else:
+        logo_html = f'<div class="logo-fallback">{_esc(name)}</div>'
+    parts = [get_setting("business_address", ""), get_setting("business_phone", "")]
+    contact = " · ".join(_esc(p) for p in parts if p and str(p).strip())
+    return name, accent, logo_html, contact
+
+
+_SLIP_CSS = """<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f1f5f9;padding:16px;}
+.bar{max-width:600px;margin:0 auto 12px;text-align:right;}
+.btn{background:__ACCENT__;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;}
+.sheet{max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px 26px;}
+.row{display:flex;justify-content:space-between;align-items:flex-start;}
+.head{border-bottom:1px solid #e2e8f0;padding-bottom:14px;}
+.logo-fallback{font-size:18px;font-weight:800;color:__ACCENT__;}
+.muted{color:#64748b;}
+.biz{font-size:11px;color:#64748b;margin-top:4px;line-height:1.5;}
+.label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.cust{padding:14px 0;border-bottom:1px solid #e2e8f0;}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0;}
+th{text-align:left;font-size:11px;color:#64748b;padding:6px 0;border-bottom:1px solid #e2e8f0;}
+td{padding:8px 0;border-bottom:1px solid #f1f5f9;}
+td.c,th.c{text-align:center;}td.r,th.r{text-align:right;}
+.totals{width:260px;margin-left:auto;font-size:13px;}
+.totals td{border:none;padding:3px 0;}
+.grand td{border-top:2px solid #0f172a;font-weight:800;font-size:15px;padding-top:8px;}
+.foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:8px;font-size:12px;}
+.pill{padding:4px 12px;border-radius:8px;font-weight:700;font-size:12px;}
+.paid{background:#f0fdf4;color:#15803d;}.unpaid{background:#fef2f2;color:#dc2626;}
+@media print{body{background:#fff;padding:0;}.sheet{border:none;}.no-print{display:none !important;}}
+</style>"""
+
+
+def payment_slip_html(order, items, currency=None):
+    from .database import get_setting, fmt_date
+    if currency is None:
+        currency = get_setting("currency", "MVR")
+    name, accent, logo_html, contact = _doc_branding()
+
+    rows = ""
+    calc_sub = 0.0
+    if items is not None and not items.empty:
+        for _, it in items.iterrows():
+            lt = float(it.get("line_total") or 0)
+            calc_sub += lt
+            rows += (f"<tr><td>{_esc(it.get('product_name'))}</td>"
+                     f"<td class='c'>{int(it.get('qty') or 0)}</td>"
+                     f"<td class='r'>{currency} {float(it.get('unit_price') or 0):,.2f}</td>"
+                     f"<td class='r'>{currency} {lt:,.2f}</td></tr>")
+    if not rows:
+        rows = "<tr><td colspan='4' class='muted'>No items</td></tr>"
+
+    subtotal = float(order.get("subtotal") or calc_sub)
+    discount = float(order.get("discount") or 0)
+    tax      = float(order.get("tax") or 0)
+    total    = float(order.get("total") or (subtotal - discount + tax))
+    n_items  = int(items["qty"].sum()) if (items is not None and not items.empty) else 0
+
+    city = _esc(order.get("customer_city"))
+    addr = _esc(order.get("customer_address"))
+    phone = _esc(order.get("customer_phone"))
+    cust_lines = phone
+    if city: cust_lines += ("<br>" if cust_lines else "") + city
+    if addr: cust_lines += ("<br>" if cust_lines else "") + addr
+
+    discount_row = (f"<tr><td class='muted'>Discount</td><td class='r'>- {currency} {discount:,.2f}</td></tr>"
+                    if discount > 0 else "")
+    paid = str(order.get("payment_status") or "Unpaid").lower() == "paid"
+    pay_class = "paid" if paid else "unpaid"
+    css = _SLIP_CSS.replace("__ACCENT__", accent)
+
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">{css}</head><body>
+<div class="bar no-print"><button class="btn" onclick="window.print()">&#128424; Print</button></div>
+<div class="sheet">
+  <div class="row head">
+    <div>{logo_html}<div class="biz">{contact}</div></div>
+    <div style="text-align:right;">
+      <div style="font-size:13px;font-weight:800;">{_esc(order.get('order_no'))}</div>
+      <div class="muted" style="font-size:12px;">{fmt_date(order.get('created_at'), show_time=False)}</div>
+      <div class="muted" style="font-size:11px;margin-top:2px;">Payment slip</div>
+    </div>
+  </div>
+  <div class="cust">
+    <div class="label">Customer</div>
+    <div style="font-size:14px;font-weight:700;">{_esc(order.get('customer_name'))}</div>
+    <div class="muted" style="font-size:12px;line-height:1.6;">{cust_lines}</div>
+  </div>
+  <table><thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Price</th><th class="r">Total</th></tr></thead>
+  <tbody>{rows}</tbody></table>
+  <table class="totals">
+    <tr><td class="muted">Subtotal</td><td class="r">{currency} {subtotal:,.2f}</td></tr>
+    {discount_row}
+    <tr><td class="muted">Tax</td><td class="r">{currency} {tax:,.2f}</td></tr>
+    <tr class="grand"><td>Total</td><td class="r">{currency} {total:,.2f}</td></tr>
+  </table>
+  <div class="foot">
+    <span class="muted">{_esc(order.get('payment_method'))} &middot; {n_items} item(s)</span>
+    <span class="pill {pay_class}">{_esc(order.get('payment_status') or 'Unpaid')}</span>
+  </div>
+</div></body></html>"""
+
+
+_STICKER_CSS = """<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;background:#f1f5f9;padding:16px;}
+.bar{max-width:430px;margin:0 auto 12px;text-align:right;}
+.btn{background:__ACCENT__;color:#fff;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;}
+.sheet{max-width:430px;margin:0 auto;background:#fff;border:2px solid #0f172a;border-radius:14px;padding:20px 24px;}
+.center{text-align:center;}
+.logo-fallback{font-size:18px;font-weight:800;color:__ACCENT__;}
+.divider{border-bottom:1px solid #e2e8f0;}
+.label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;}
+.name{font-size:22px;font-weight:800;line-height:1.2;margin-top:4px;}
+.addr{font-size:15px;line-height:1.6;margin-top:6px;}
+.meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;padding:12px 0;}
+.muted{color:#64748b;}
+.barcode{height:46px;margin:6px auto 2px;max-width:280px;
+  background:repeating-linear-gradient(90deg,#0f172a 0,#0f172a 2px,#fff 2px,#fff 4px,#0f172a 4px,#0f172a 5px,#fff 5px,#fff 8px);}
+.track{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;}
+@media print{body{background:#fff;padding:0;}.no-print{display:none !important;}}
+</style>"""
+
+
+def delivery_sticker_html(order, items=None, currency=None):
+    from .database import get_setting, fmt_date
+    name, accent, logo_html, contact = _doc_branding()
+    n_items = int(items["qty"].sum()) if (items is not None and not items.empty) else 0
+    city = _esc(order.get("customer_city"))
+    addr = _esc(order.get("customer_address"))
+    addr_block = addr
+    if city:
+        addr_block += ("<br>" if addr_block else "") + city
+    if not addr_block:
+        addr_block = "<span class='muted'>No address on file</span>"
+    css = _STICKER_CSS.replace("__ACCENT__", accent)
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">{css}</head><body>
+<div class="bar no-print"><button class="btn" onclick="window.print()">&#128424; Print</button></div>
+<div class="sheet">
+  <div class="center divider" style="padding-bottom:12px;">{logo_html}</div>
+  <div class="divider" style="padding:14px 0;">
+    <div class="label">Deliver to</div>
+    <div class="name">{_esc(order.get('customer_name'))}</div>
+    <div class="addr">{addr_block}</div>
+    <div class="muted" style="font-size:14px;margin-top:6px;">&#9742; {_esc(order.get('customer_phone'))}</div>
+  </div>
+  <div class="meta divider">
+    <div><span class="muted">Order </span><b>{_esc(order.get('order_no'))}</b></div>
+    <div><span class="muted">Date </span><b>{fmt_date(order.get('created_at'), show_time=False)}</b></div>
+    <div><span class="muted">Items </span><b>{n_items}</b></div>
+  </div>
+  <div class="center" style="padding-top:14px;">
+    <div class="barcode"></div>
+    <div class="track">{_esc(order.get('order_no'))}</div>
+  </div>
+</div></body></html>"""
