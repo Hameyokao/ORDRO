@@ -104,12 +104,10 @@ elif choice == "Reports":               reports.render()
 elif choice == "Expenses":              expenses.render()
 elif choice == "Orders":                orders.render()
 elif choice == "Activity Log":          activity_log.render()
-elif choice == "Settings":              settings.render()
-
-# ── Mobile menu auto-hide (injected once per session) ─────────────────────────
-# On phones (< 768px) the side menu closes the instant a menu button is tapped,
-# and it starts closed after sign-in. Handled entirely in the browser, bound a
-# single time, so it can never double-fire (no flicker). Desktop is untouched.
+elif choice == "Settings":              settings.render()# ── Mobile menu auto-hide (injected once per session) ─────────────────────────
+# On phones (< 768px): the side menu closes the instant any menu button is
+# tapped, and it starts closed after sign-in. Bound a single time so it can
+# never double-fire (no flicker). Desktop is never touched.
 if not st.session_state.get("_nav_js_injected"):
     st.session_state["_nav_js_injected"] = True
     components.html(
@@ -120,23 +118,39 @@ if not st.session_state.get("_nav_js_injected"):
             if (!root || root.__ordroNavBound) return;
             root.__ordroNavBound = true;
             const doc = root.document;
+
             const mobile = () => (root.innerWidth || 0) < 768;
-            const sidebar = () => doc.querySelector('[data-testid="stSidebar"]');
+            const sidebar = () => doc.querySelector('section[data-testid="stSidebar"]');
+
             const isOpen = () => {
                 const sb = sidebar();
                 if (!sb) return false;
                 const ae = sb.getAttribute('aria-expanded');
-                if (ae !== null) return ae === 'true';
-                return sb.getBoundingClientRect().width > 5;
+                if (ae === 'true') return true;
+                if (ae === 'false') return false;
+                const r = sb.getBoundingClientRect();
+                return r.width > 100 && r.right > 0;
             };
-            const closeBtn = () => doc.querySelector(
-                '[data-testid="stSidebarCollapseButton"] button,'
-                + '[data-testid="stSidebarCollapseButton"],'
-                + 'button[aria-label="Close sidebar"],'
-                + 'button[aria-label="Collapse sidebar"]');
-            const closeNow = () => { if (mobile() && isOpen()) { const b = closeBtn(); if (b) b.click(); } };
 
-            // Close the menu the instant a button inside the sidebar is tapped.
+            const clickCollapse = () => {
+                const sels = [
+                    'div[data-testid="stSidebarCollapseButton"] button',
+                    'button[data-testid="stSidebarCollapseButton"]',
+                    'div[data-testid="stSidebarHeader"] button',
+                    'button[aria-label="Close sidebar"]',
+                    'button[aria-label="Collapse sidebar"]',
+                    'button[kind="headerNoPadding"]'
+                ];
+                for (const sel of sels) {
+                    const el = doc.querySelector(sel);
+                    if (el) { el.click(); return true; }
+                }
+                return false;
+            };
+
+            const closeNow = () => { if (mobile() && isOpen()) clickCollapse(); };
+
+            // 1) Close immediately when a menu button inside the sidebar is tapped.
             doc.addEventListener('click', function (e) {
                 if (!mobile()) return;
                 const sb = sidebar();
@@ -147,15 +161,15 @@ if not st.session_state.get("_nav_js_injected"):
                 setTimeout(closeNow, 0);
             }, true);
 
-            // On phones, start with the menu closed after sign-in.
+            // 2) On phones, start closed after sign-in.
             let tries = 0;
             const initClose = () => {
                 if (!mobile()) return;
                 const sb = sidebar();
-                if (!sb) { if (tries++ < 25) setTimeout(initClose, 100); return; }
+                if (!sb) { if (tries++ < 30) setTimeout(initClose, 100); return; }
                 if (isOpen()) closeNow();
             };
-            setTimeout(initClose, 120);
+            setTimeout(initClose, 150);
         })();
         </script>
         """,
