@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from components.database import init_db, get_setting
 from components.theme import apply_theme, logo_data_uri
 from components.auth import login_box, logout_button, has_access, current_role
@@ -86,6 +87,7 @@ for item in menu:
         type="primary" if is_active else "secondary",
     ):
         st.session_state.page = item
+        st.session_state["_collapse_sidebar"] = True
         st.rerun()
 
 st.sidebar.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
@@ -104,3 +106,34 @@ elif choice == "Expenses":              expenses.render()
 elif choice == "Orders":                orders.render()
 elif choice == "Activity Log":          activity_log.render()
 elif choice == "Settings":              settings.render()
+
+# ── Mobile: after a menu item is chosen, slide the sidebar away ───────────────
+# Only affects narrow screens (phones, width < 768px). Desktop is untouched.
+if st.session_state.pop("_collapse_sidebar", False):
+    components.html(
+        """
+        <script>
+        const root = window.parent;
+        if (root && root.innerWidth && root.innerWidth < 768) {
+            const doc = root.document;
+            const hide = () => {
+                const sels = [
+                    '[data-testid="stSidebarCollapseButton"] button',
+                    '[data-testid="stSidebarCollapseButton"]',
+                    'button[aria-label="Close sidebar"]',
+                    'button[aria-label="Collapse sidebar"]'
+                ];
+                for (const s of sels) {
+                    const el = doc.querySelector(s);
+                    if (el) { el.click(); return true; }
+                }
+                return false;
+            };
+            setTimeout(hide, 60);
+            setTimeout(hide, 200);
+            setTimeout(hide, 500);
+        }
+        </script>
+        """,
+        height=0, width=0,
+    )
