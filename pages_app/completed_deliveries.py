@@ -13,10 +13,8 @@ def render():
     base   = ("SELECT * FROM orders WHERE order_type='Delivery' "
               "AND status IN ('Delivered','Completed')")
     params = ()
-
-    if role == "Delivery" and st.session_state.get("role") != "Admin":
-        base  += " AND assigned_to=? AND date(created_at) >= date('now','-30 days')"
-        params = (username,)
+    # Delivery users see ALL completed delivery orders (every date, every driver) —
+    # nothing is hidden by age or assignment.
 
     orders = query_df(
         base + " ORDER BY CASE WHEN COALESCE(payment_status,'Unpaid')!='Paid' "

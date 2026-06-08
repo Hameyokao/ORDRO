@@ -236,9 +236,8 @@ def render():
     base   = ("SELECT * FROM orders WHERE order_type='Delivery' "
               "AND status NOT IN ('Delivered','Completed','Cancelled')")
     params = ()
-    if role == "Delivery" and st.session_state.get("role") != "Admin":
-        base  += " AND assigned_to=?"
-        params = (username,)
+    # Delivery users see ALL active delivery orders (every driver), not only
+    # the ones assigned to them.
 
     orders = query_df(
         base + " ORDER BY CASE WHEN LOWER(COALESCE(notes,'')) LIKE '%urgent%' THEN 0 "

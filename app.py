@@ -8,7 +8,7 @@ from pages_app import (
     settings, expenses, orders, completed_deliveries, activity_log,
 )
 
-st.set_page_config(page_title="ORDRO", page_icon="◆", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="ORDRO", page_icon="◆", layout="wide", initial_sidebar_state="auto")
 init_db()
 apply_theme()
 

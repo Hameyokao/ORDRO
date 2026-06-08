@@ -30,17 +30,25 @@ def render():
     hero("Orders", "All orders — manage status, payment and fulfilment.")
     currency = get_setting("currency", "MVR")
 
+    # Delivery staff should see EVERYTHING by default (all orders, all dates) so
+    # nothing disappears on them; other roles keep the recent-first defaults.
+    _role = st.session_state.get("view_role") or st.session_state.get("role")
+    _is_delivery = _role == "Delivery" and st.session_state.get("role") != "Admin"
+
+    group_opts = ["Active Orders", "Pending Payment", "Completed Orders",
+                  "Cancelled Orders", "All Orders"]
+    period_opts = ["Last 7 days", "This month", "Previous month",
+                   "Select month", "Select week", "Select year", "All time"]
+
     f1, f2, f3 = st.columns([1.1, 1.1, 1.1])
     with f1:
-        view = st.selectbox("Group", [
-            "Active Orders", "Pending Payment", "Completed Orders",
-            "Cancelled Orders", "All Orders",
-        ])
+        view = st.selectbox(
+            "Group", group_opts,
+            index=group_opts.index("All Orders") if _is_delivery else 0)
     with f2:
-        date_mode = st.selectbox("Period", [
-            "Last 7 days", "This month", "Previous month",
-            "Select month", "Select week", "Select year", "All time",
-        ])
+        date_mode = st.selectbox(
+            "Period", period_opts,
+            index=period_opts.index("All time") if _is_delivery else 0)
     month_value = week_value = year_value = None
     with f3:
         if date_mode == "Select month":
