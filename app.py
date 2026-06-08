@@ -17,6 +17,12 @@ if not st.session_state.get("logged_in"):
     login_box()
     st.stop()
 
+# On the first screen after signing in, ask the menu to close on phones so it
+# starts hidden behind the menu button (desktop is unaffected).
+if not st.session_state.get("_mobile_init"):
+    st.session_state["_mobile_init"] = True
+    st.session_state["_collapse_sidebar"] = True
+
 real_role     = st.session_state.get("role", "Delivery")
 role          = current_role()
 full_name     = st.session_state.get("full_name", "User")
@@ -107,8 +113,10 @@ elif choice == "Orders":                orders.render()
 elif choice == "Activity Log":          activity_log.render()
 elif choice == "Settings":              settings.render()
 
-# ── Mobile: after a menu item is chosen, slide the sidebar away ───────────────
-# Only affects narrow screens (phones, width < 768px). Desktop is untouched.
+# ── Mobile menu auto-hide ─────────────────────────────────────────────────────
+# On phones (width < 768px), close the sidebar EXACTLY ONCE after sign-in and
+# after each menu selection. It checks the sidebar is actually open first, so it
+# never toggles it back open (no flicker). Desktop is never touched.
 if st.session_state.pop("_collapse_sidebar", False):
     components.html(
         """
@@ -116,22 +124,28 @@ if st.session_state.pop("_collapse_sidebar", False):
         const root = window.parent;
         if (root && root.innerWidth && root.innerWidth < 768) {
             const doc = root.document;
-            const hide = () => {
-                const sels = [
-                    '[data-testid="stSidebarCollapseButton"] button',
-                    '[data-testid="stSidebarCollapseButton"]',
-                    'button[aria-label="Close sidebar"]',
-                    'button[aria-label="Collapse sidebar"]'
-                ];
-                for (const s of sels) {
-                    const el = doc.querySelector(s);
-                    if (el) { el.click(); return true; }
-                }
-                return false;
+            let done = false;
+            const sidebarOpen = (sb) => {
+                if (!sb) return false;
+                const ae = sb.getAttribute('aria-expanded');
+                if (ae !== null) return ae === 'true';
+                return sb.getBoundingClientRect().width > 5;
             };
-            setTimeout(hide, 60);
-            setTimeout(hide, 200);
-            setTimeout(hide, 500);
+            const closeOnce = (n) => {
+                if (done) return;
+                const sb = doc.querySelector('[data-testid="stSidebar"]');
+                if (sb && !sidebarOpen(sb)) { done = true; return; }   // already closed
+                if (sb && sidebarOpen(sb)) {
+                    const btn = doc.querySelector(
+                        '[data-testid="stSidebarCollapseButton"] button,'
+                        + '[data-testid="stSidebarCollapseButton"],'
+                        + 'button[aria-label="Close sidebar"],'
+                        + 'button[aria-label="Collapse sidebar"]');
+                    if (btn) { done = true; btn.click(); return; }      // one click only
+                }
+                if (n < 20) setTimeout(() => closeOnce(n + 1), 100);
+            };
+            closeOnce(0);
         }
         </script>
         """,
