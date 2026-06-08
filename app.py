@@ -104,36 +104,36 @@ elif choice == "Reports":               reports.render()
 elif choice == "Expenses":              expenses.render()
 elif choice == "Orders":                orders.render()
 elif choice == "Activity Log":          activity_log.render()
-elif choice == "Settings":              settings.render()# ── Mobile menu auto-hide (injected once per session) ─────────────────────────
-# On phones (< 768px): the side menu closes the instant any menu button is
-# tapped, and it starts closed after sign-in. Bound a single time so it can
-# never double-fire (no flicker). Desktop is never touched.
-if not st.session_state.get("_nav_js_injected"):
-    st.session_state["_nav_js_injected"] = True
-    components.html(
-        """
-        <script>
-        (function () {
-            const root = window.parent;
-            if (!root || root.__ordroNavBound) return;
-            root.__ordroNavBound = true;
-            const doc = root.document;
-
-            const mobile = () => (root.innerWidth || 0) < 768;
-            const sidebar = () => doc.querySelector('section[data-testid="stSidebar"]');
-
-            const isOpen = () => {
-                const sb = sidebar();
+elif choice == "Settings":              settings.render()# ── Mobile menu auto-hide (installed into the MAIN page so it survives reloads) ─
+# A throw-away component frame gets deleted by Streamlit on every rerun, which
+# would kill any listener bound inside it. So instead we inject a small script
+# into the top page document itself, bound exactly once. On phones (< 768px) the
+# side menu closes the instant any menu button is tapped and starts closed after
+# sign-in. Desktop is never touched. Applies to every signed-in user & role.
+components.html(
+    """
+    <script>
+    (function () {
+        var root = window.parent;
+        if (!root || root.__ordroBootstrapped) return;
+        root.__ordroBootstrapped = true;
+        function ordroSetup() {
+            if (window.__ordroNavBound) return;
+            window.__ordroNavBound = true;
+            var doc = document;
+            function mobile() { return (window.innerWidth || 0) < 768; }
+            function sidebar() { return doc.querySelector('section[data-testid="stSidebar"]'); }
+            function isOpen() {
+                var sb = sidebar();
                 if (!sb) return false;
-                const ae = sb.getAttribute('aria-expanded');
+                var ae = sb.getAttribute('aria-expanded');
                 if (ae === 'true') return true;
                 if (ae === 'false') return false;
-                const r = sb.getBoundingClientRect();
+                var r = sb.getBoundingClientRect();
                 return r.width > 100 && r.right > 0;
-            };
-
-            const clickCollapse = () => {
-                const sels = [
+            }
+            function clickCollapse() {
+                var sels = [
                     'div[data-testid="stSidebarCollapseButton"] button',
                     'button[data-testid="stSidebarCollapseButton"]',
                     'div[data-testid="stSidebarHeader"] button',
@@ -141,37 +141,36 @@ if not st.session_state.get("_nav_js_injected"):
                     'button[aria-label="Collapse sidebar"]',
                     'button[kind="headerNoPadding"]'
                 ];
-                for (const sel of sels) {
-                    const el = doc.querySelector(sel);
+                for (var i = 0; i < sels.length; i++) {
+                    var el = doc.querySelector(sels[i]);
                     if (el) { el.click(); return true; }
                 }
                 return false;
-            };
-
-            const closeNow = () => { if (mobile() && isOpen()) clickCollapse(); };
-
-            // 1) Close immediately when a menu button inside the sidebar is tapped.
+            }
+            function closeNow() { if (mobile() && isOpen()) clickCollapse(); }
             doc.addEventListener('click', function (e) {
                 if (!mobile()) return;
-                const sb = sidebar();
+                var sb = sidebar();
                 if (!sb || !sb.contains(e.target)) return;
-                const btn = e.target.closest('button');
+                var btn = e.target.closest('button');
                 if (!btn) return;
                 if (btn.closest('[data-testid="stSidebarCollapseButton"]')) return;
                 setTimeout(closeNow, 0);
             }, true);
-
-            // 2) On phones, start closed after sign-in.
-            let tries = 0;
-            const initClose = () => {
+            var tries = 0;
+            function initClose() {
                 if (!mobile()) return;
-                const sb = sidebar();
+                var sb = sidebar();
                 if (!sb) { if (tries++ < 30) setTimeout(initClose, 100); return; }
                 if (isOpen()) closeNow();
-            };
+            }
             setTimeout(initClose, 150);
-        })();
-        </script>
-        """,
-        height=0, width=0,
-    )
+        }
+        var s = root.document.createElement("script");
+        s.textContent = "(" + ordroSetup.toString() + ")();";
+        root.document.body.appendChild(s);
+    })();
+    </script>
+    """,
+    height=0, width=0,
+)
