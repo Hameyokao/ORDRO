@@ -17,12 +17,6 @@ if not st.session_state.get("logged_in"):
     login_box()
     st.stop()
 
-# On the first screen after signing in, ask the menu to close on phones so it
-# starts hidden behind the menu button (desktop is unaffected).
-if not st.session_state.get("_mobile_init"):
-    st.session_state["_mobile_init"] = True
-    st.session_state["_collapse_sidebar"] = True
-
 real_role     = st.session_state.get("role", "Delivery")
 role          = current_role()
 full_name     = st.session_state.get("full_name", "User")
@@ -93,7 +87,6 @@ for item in menu:
         type="primary" if is_active else "secondary",
     ):
         st.session_state.page = item
-        st.session_state["_collapse_sidebar"] = True
         st.rerun()
 
 st.sidebar.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
@@ -113,40 +106,57 @@ elif choice == "Orders":                orders.render()
 elif choice == "Activity Log":          activity_log.render()
 elif choice == "Settings":              settings.render()
 
-# ── Mobile menu auto-hide ─────────────────────────────────────────────────────
-# On phones (width < 768px), close the sidebar EXACTLY ONCE after sign-in and
-# after each menu selection. It checks the sidebar is actually open first, so it
-# never toggles it back open (no flicker). Desktop is never touched.
-if st.session_state.pop("_collapse_sidebar", False):
+# ── Mobile menu auto-hide (injected once per session) ─────────────────────────
+# On phones (< 768px) the side menu closes the instant a menu button is tapped,
+# and it starts closed after sign-in. Handled entirely in the browser, bound a
+# single time, so it can never double-fire (no flicker). Desktop is untouched.
+if not st.session_state.get("_nav_js_injected"):
+    st.session_state["_nav_js_injected"] = True
     components.html(
         """
         <script>
-        const root = window.parent;
-        if (root && root.innerWidth && root.innerWidth < 768) {
+        (function () {
+            const root = window.parent;
+            if (!root || root.__ordroNavBound) return;
+            root.__ordroNavBound = true;
             const doc = root.document;
-            let done = false;
-            const sidebarOpen = (sb) => {
+            const mobile = () => (root.innerWidth || 0) < 768;
+            const sidebar = () => doc.querySelector('[data-testid="stSidebar"]');
+            const isOpen = () => {
+                const sb = sidebar();
                 if (!sb) return false;
                 const ae = sb.getAttribute('aria-expanded');
                 if (ae !== null) return ae === 'true';
                 return sb.getBoundingClientRect().width > 5;
             };
-            const closeOnce = (n) => {
-                if (done) return;
-                const sb = doc.querySelector('[data-testid="stSidebar"]');
-                if (sb && !sidebarOpen(sb)) { done = true; return; }   // already closed
-                if (sb && sidebarOpen(sb)) {
-                    const btn = doc.querySelector(
-                        '[data-testid="stSidebarCollapseButton"] button,'
-                        + '[data-testid="stSidebarCollapseButton"],'
-                        + 'button[aria-label="Close sidebar"],'
-                        + 'button[aria-label="Collapse sidebar"]');
-                    if (btn) { done = true; btn.click(); return; }      // one click only
-                }
-                if (n < 20) setTimeout(() => closeOnce(n + 1), 100);
+            const closeBtn = () => doc.querySelector(
+                '[data-testid="stSidebarCollapseButton"] button,'
+                + '[data-testid="stSidebarCollapseButton"],'
+                + 'button[aria-label="Close sidebar"],'
+                + 'button[aria-label="Collapse sidebar"]');
+            const closeNow = () => { if (mobile() && isOpen()) { const b = closeBtn(); if (b) b.click(); } };
+
+            // Close the menu the instant a button inside the sidebar is tapped.
+            doc.addEventListener('click', function (e) {
+                if (!mobile()) return;
+                const sb = sidebar();
+                if (!sb || !sb.contains(e.target)) return;
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                if (btn.closest('[data-testid="stSidebarCollapseButton"]')) return;
+                setTimeout(closeNow, 0);
+            }, true);
+
+            // On phones, start with the menu closed after sign-in.
+            let tries = 0;
+            const initClose = () => {
+                if (!mobile()) return;
+                const sb = sidebar();
+                if (!sb) { if (tries++ < 25) setTimeout(initClose, 100); return; }
+                if (isOpen()) closeNow();
             };
-            closeOnce(0);
-        }
+            setTimeout(initClose, 120);
+        })();
         </script>
         """,
         height=0, width=0,
