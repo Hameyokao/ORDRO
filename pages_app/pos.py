@@ -14,6 +14,23 @@ def _ensure_cart():
         st.session_state.cart = []
 
 
+def _ensure_fee_columns():
+    """Make sure the orders table has the additional-fees columns.
+
+    Safe to call on every run — it only ALTERs when a column is missing,
+    so the fees feature works even if the database.py migration has not
+    run on this particular deployment/database file yet.
+    """
+    try:
+        cols = set(query_df("PRAGMA table_info(orders)")["name"].tolist())
+        if "extra_fees" not in cols:
+            execute("ALTER TABLE orders ADD COLUMN extra_fees REAL DEFAULT 0")
+        if "extra_fees_detail" not in cols:
+            execute("ALTER TABLE orders ADD COLUMN extra_fees_detail TEXT")
+    except Exception:
+        pass
+
+
 def _add_to_cart(row, qty):
     qty = int(qty)
     available = int(row['stock'])
@@ -296,6 +313,7 @@ def _cart_dialog(currency, tax_percent):
 # ─────────────────────────────────────────────────────────────────────────────
 def render():
     _ensure_cart()
+    _ensure_fee_columns()
     hero("Point of Sale", "Fast checkout · phone-verified customers · live stock check.")
     currency    = get_setting("currency", "MVR")
     tax_percent = float(get_setting("tax_percent", "0") or 0)
