@@ -563,7 +563,12 @@ def render_admin_staff_dashboard(currency):
         unsafe_allow_html=True,
     )
     render_dashboard_component(cards, panels, radios, tab_ids, height=960)
-    render_sales_chart(currency)
+
+    # Two finance charts (replaces the old "Sales chart period" selector):
+    import components.charts as charts
+    st.markdown("---")
+    charts.render_report("sp_week", style="bar", period="week", height=320)
+    charts.render_report("sp_month", style="line", period="month", height=320)
 
     if has_access("Admin"):
         st.markdown("---")
