@@ -178,6 +178,29 @@ def render_order_card(order, mode="delivery"):
                         st.success("Order deleted.")
                         st.rerun()
 
+            if st.session_state.get("role") == "Super Admin":
+                with st.expander("✎ Edit order number (Administrator)"):
+                    new_no = st.text_input(
+                        "Order number", value=order.get("order_no") or "",
+                        key=f"onum_{order_id}_{mode}")
+                    if st.button("Save number", key=f"onsave_{order_id}_{mode}",
+                                 icon=":material/save:"):
+                        nn = (new_no or "").strip()
+                        if not nn:
+                            st.error("Order number cannot be empty.")
+                        else:
+                            dup = query_df(
+                                "SELECT id FROM orders WHERE order_no=? AND id!=?",
+                                (nn, order_id))
+                            if not dup.empty:
+                                st.error("That order number is already used by another order.")
+                            else:
+                                execute("UPDATE orders SET order_no=? WHERE id=?", (nn, order_id))
+                                log("Edited order number", entity="order",
+                                    entity_id=order_id, detail=nn)
+                                st.success("Order number updated.")
+                                st.rerun()
+
         elif has_access("Delivery") and mode == "completed":
             new_pay = st.selectbox(
                 "Update Payment", PAYMENTS, key=f"cpay_{order_id}_{mode}",

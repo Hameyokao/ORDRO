@@ -318,5 +318,17 @@ def set_setting(key, value):
 
 
 def next_order_no():
-    last_id = scalar("SELECT COALESCE(MAX(id),0) FROM orders", default=0)
-    return f"ORD-{int(last_id) + 1:04d}-{datetime.now().strftime('%y')}"
+    """Order numbers look like ORD26-1001 (ORD + 2-digit year + dash + running
+    number starting at 1001). The running number resets each new year."""
+    yy = datetime.now().strftime("%y")
+    prefix = f"ORD{yy}-"
+    df = query_df("SELECT order_no FROM orders WHERE order_no LIKE ?", (prefix + "%",))
+    mx = 1000
+    for v in df["order_no"]:
+        try:
+            n = int(str(v).split("-")[-1])
+            if n > mx:
+                mx = n
+        except Exception:
+            pass
+    return f"{prefix}{mx + 1}"
