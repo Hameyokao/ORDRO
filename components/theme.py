@@ -432,6 +432,141 @@ def apply_theme():
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Neomorphic Soft full-app skin (opt-in from Settings → App Style) ──
+    if get_setting("ui_style", "Classic") == "Neomorphic Soft":
+        st.markdown(f"""
+        <style>
+        :root {{
+            --ink:#1e2a3a !important;
+            --muted:#5a6e8a !important;
+            --card:#e0e5ec !important;
+            --card-border:transparent !important;
+            --line:rgba(120,140,170,.18) !important;
+            --neu-bg:#eef2f9;
+            --neu-surface:#e0e5ec;
+            --neu-d:#bcc6d6;
+            --neu-l:#ffffff;
+        }}
+
+        html, body, .stApp, [data-testid="stApp"] {{
+            background:#eef2f9 !important;
+            color:#1e2a3a !important;
+        }}
+        .block-container, .stApp p, .stApp span, .stApp label,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5 {{
+            color:#1e2a3a !important;
+        }}
+        .muted, .metric-label, .metric-note, .stCaption, small {{ color:#5a6e8a !important; }}
+
+        /* Raised soft surfaces */
+        .soft-card, .info-card, .delivery-card, .metric-card,
+        div[data-testid="stMetric"],
+        div[data-testid="stExpander"],
+        div[data-testid="stContainer"][data-border="true"] {{
+            background:#e0e5ec !important;
+            border:none !important;
+            border-radius:24px !important;
+            box-shadow:5px 5px 11px #bcc6d6, -5px -5px 11px #ffffff !important;
+        }}
+        .delivery-card:hover {{
+            box-shadow:7px 7px 16px #bcc6d6, -7px -7px 16px #ffffff !important;
+        }}
+
+        /* Hero keeps the accent but softer + rounder */
+        .hero-block {{
+            border-radius:28px !important;
+            box-shadow:5px 5px 14px #bcc6d6, -5px -5px 14px #ffffff !important;
+        }}
+        .metric-value, div[data-testid="stMetricValue"] {{ color:#1e2a3a !important; }}
+
+        /* Inputs → inset pressed pills */
+        .stTextInput div[data-baseweb="input"],
+        .stNumberInput div[data-baseweb="input"],
+        .stDateInput div[data-baseweb="input"],
+        .stTextArea textarea,
+        div[data-baseweb="select"] > div:first-child {{
+            background:#e0e5ec !important;
+            border:none !important;
+            border-radius:14px !important;
+            box-shadow:inset 3px 3px 6px #bcc6d6, inset -3px -3px 6px #ffffff !important;
+            color:#1e2a3a !important;
+        }}
+        .stTextInput input, .stNumberInput input, .stDateInput input {{
+            background:transparent !important;
+            border:none !important;
+            box-shadow:none !important;
+            color:#1e2a3a !important;
+        }}
+        .stTextInput div[data-baseweb="input"]:focus-within,
+        .stNumberInput div[data-baseweb="input"]:focus-within {{
+            box-shadow:inset 4px 4px 8px #b0bacb, inset -4px -4px 8px #ffffff !important;
+        }}
+
+        /* Buttons → raised, press to inset */
+        .stButton > button, .stDownloadButton > button,
+        div[data-testid="stFormSubmitButton"] button {{
+            background:#e0e5ec !important;
+            border:none !important;
+            border-radius:14px !important;
+            color:#2c3e66 !important;
+            box-shadow:4px 4px 8px #bcc6d6, -4px -4px 8px #ffffff !important;
+        }}
+        .stButton > button:active, .stDownloadButton > button:active,
+        div[data-testid="stFormSubmitButton"] button:active {{
+            box-shadow:inset 3px 3px 6px #bcc6d6, inset -3px -3px 6px #ffffff !important;
+            transform:scale(.99) !important;
+        }}
+        .stButton > button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] button[kind="primary"] {{
+            background:{accent} !important;
+            color:#fff !important;
+            box-shadow:4px 4px 8px #bcc6d6, -4px -4px 8px #ffffff !important;
+        }}
+
+        /* Sidebar */
+        section[data-testid="stSidebar"] {{
+            background:#eef2f9 !important;
+            border-right:none !important;
+            box-shadow:none !important;
+        }}
+        .sidebar-brand {{
+            background:#e0e5ec !important;
+            border:none !important;
+            border-radius:24px !important;
+            box-shadow:5px 5px 11px #bcc6d6, -5px -5px 11px #ffffff !important;
+        }}
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button {{
+            border-radius:14px !important;
+            box-shadow:4px 4px 8px #bcc6d6, -4px -4px 8px #ffffff !important;
+        }}
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"] {{
+            background:#e0e5ec !important;
+            color:#2c3e66 !important;
+        }}
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {{
+            background:{accent} !important;
+            color:#fff !important;
+        }}
+
+        /* Tables */
+        div.stDataFrame {{
+            border:none !important;
+            border-radius:18px !important;
+            overflow:hidden !important;
+            box-shadow:inset 3px 3px 6px #bcc6d6, inset -3px -3px 6px #ffffff !important;
+        }}
+
+        /* Expander header text stays readable */
+        div[data-testid="stExpander"] summary,
+        div[data-testid="stExpander"] summary * {{ color:#1e2a3a !important; }}
+
+        /* Tabs */
+        button[data-baseweb="tab"] {{ color:#5a6e8a !important; }}
+        button[data-baseweb="tab"][aria-selected="true"] {{ color:{accent} !important; }}
+        </style>
+        """, unsafe_allow_html=True)
+
+
 
 def hero(title: str, subtitle: str = ""):
     sub_html = f'<p class="hero-sub">{subtitle}</p>' if subtitle else ""

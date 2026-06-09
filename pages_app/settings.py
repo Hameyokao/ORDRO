@@ -94,6 +94,16 @@ def render():
     with st.container(border=True):
         _section("Theme, Colour & Banner")
         with st.form("theme_form"):
+            ui_style_opts = ["Classic", "Neomorphic Soft"]
+            cur_ui_style = get_setting("ui_style", "Classic")
+            ui_style = st.selectbox(
+                "App Style",
+                ui_style_opts,
+                index=ui_style_opts.index(cur_ui_style) if cur_ui_style in ui_style_opts else 0,
+                help="Neomorphic Soft applies a soft, light 3D look across the whole app. "
+                     "It uses your Accent Colour; background themes and dark modes are "
+                     "overridden while it is active.",
+            )
             c1, c2, c3 = st.columns(3)
             theme_name = c1.selectbox(
                 "App Background Theme", list(THEMES.keys()),
@@ -119,10 +129,12 @@ def render():
                 unsafe_allow_html=True,
             )
             if st.form_submit_button("Apply Design", type="primary", icon=":material/palette:"):
+                set_setting("ui_style",     ui_style)
                 set_setting("theme_name",   theme_name)
                 set_setting("accent_color", accent_color)
                 set_setting("banner_theme", banner_theme)
-                log("Updated theme", entity="settings", detail=f"{theme_name} / {accent_color}")
+                log("Updated theme", entity="settings",
+                    detail=f"{ui_style} / {theme_name} / {accent_color}")
                 st.success("Theme updated.")
                 st.rerun()
 
