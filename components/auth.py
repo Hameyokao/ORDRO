@@ -1,4 +1,6 @@
 import streamlit as st
+import streamlit.components.v1 as components
+# ORDRO v13 — neomorphic login
 from .database import query_df, get_setting, verify_password, execute, hash_password, is_hashed, record_activity
 from .theme import logo_data_uri, COLORS
 
@@ -19,146 +21,194 @@ def login_box():
     accent   = COLORS.get(get_setting("accent_color", "Royal Blue"), "#2563eb")
     logo     = logo_data_uri(get_setting("business_logo", ""))
 
+    # The logo tile shows the uploaded image from Settings if present,
+    # otherwise it falls back to the first letter of the business name.
     if logo:
         logo_html = (
-            f'<img src="{logo}" style="width:68px;height:68px;object-fit:cover;'
-            f'border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.18);flex-shrink:0;">'
+            f'<img src="{logo}" style="width:72px;height:72px;object-fit:cover;'
+            f'border-radius:32px;flex-shrink:0;'
+            f'box-shadow:inset 2px 2px 5px #b8c0ce, inset -3px -3px 7px #ffffff;">'
         )
     else:
         first = (business[:1] or "O").upper()
         logo_html = (
-            f'<div style="width:68px;height:68px;border-radius:14px;background:{accent};'
+            f'<div style="width:72px;height:72px;border-radius:32px;background:#e0e5ec;'
             f'display:flex;align-items:center;justify-content:center;'
-            f'font-size:28px;font-weight:800;color:#fff;flex-shrink:0;">{first}</div>'
+            f'font-size:2.2rem;font-weight:800;color:#1e3a5f;flex-shrink:0;'
+            f'box-shadow:inset 2px 2px 5px #b8c0ce, inset -3px -3px 7px #ffffff;">{first}</div>'
         )
 
-    # ── CSS ───────────────────────────────────────────────────────────────
-    st.markdown(f"""
+    # -- Neomorphic CSS ------------------------------------------------------
+    st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    html, body, [data-testid="stApp"] {{
-        font-family:'Inter',system-ui,sans-serif !important;
-        background:linear-gradient(145deg,#0f2040 0%,#1a3a6e 45%,#0e2d55 100%) !important;
+    html, body, [data-testid="stApp"], .stApp {
+        font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif !important;
+        background:#eef2f9 !important;
         min-height:100vh;
-    }}
+    }
 
     /* hide chrome */
     header[data-testid="stHeader"],
     [data-testid="stDecoration"],
     [data-testid="stToolbar"],
-    section[data-testid="stSidebar"] {{ display:none !important; }}
+    section[data-testid="stSidebar"] { display:none !important; }
 
     /* vertically center main area */
-    .main .block-container {{
-        padding:0 !important;
+    .main .block-container, .block-container {
+        padding:2rem 1rem !important;
         max-width:100% !important;
         min-height:100vh;
         display:flex;
         align-items:center;
         justify-content:center;
-    }}
-    section[data-testid="stMain"] > div:first-child {{
-        width:100%;
-    }}
+    }
+    section[data-testid="stMain"] > div:first-child { width:100%; }
+    [data-testid="column"] { padding:0 !important; }
 
-    /* form */
-    div[data-testid="stForm"] {{
-        border:none !important;padding:0 !important;
-        background:transparent !important;box-shadow:none !important;
-    }}
+    /* -- The form IS the neomorphic card -- */
+    div[data-testid="stForm"] {
+        background:#e0e5ec !important;
+        border:none !important;
+        border-radius:48px !important;
+        padding:2.5rem 2.2rem 2rem !important;
+        box-shadow:9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff !important;
+        max-width:500px !important;
+        margin:0 auto !important;
+    }
 
-    /* inputs */
-    div[data-testid="stTextInput"] input {{
-        border:1.5px solid #e2e8f0 !important;border-radius:10px !important;
-        padding:11px 14px !important;font-size:14px !important;
+    /* neomorphic inputs */
+    div[data-testid="stTextInput"] div[data-baseweb="input"],
+    div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
+        border:none !important;
+        border-radius:60px !important;
+        background:#e0e5ec !important;
+        box-shadow:inset 4px 4px 8px #b8c0ce, inset -4px -4px 8px #ffffff !important;
+        padding:0 0.4rem !important;
+        overflow:hidden !important;
+        position:relative !important;
+    }
+    div[data-testid="stTextInput"] input {
+        border:none !important;
+        background:transparent !important;
+        box-shadow:none !important;
+        padding:0.85rem 1.1rem !important;
+        font-size:0.95rem !important;
         font-family:'Inter',system-ui,sans-serif !important;
-        background:#f8fafc !important;color:#0f172a !important;
-        transition:border-color .2s,box-shadow .2s !important;
-    }}
-    div[data-testid="stTextInput"] input:focus {{
-        border-color:{accent} !important;background:#fff !important;
-        box-shadow:0 0 0 3px {accent}22 !important;
-    }}
-    div[data-testid="stTextInput"] label {{
-        font-size:12px !important;font-weight:600 !important;
-        color:#374151 !important;font-family:'Inter',system-ui,sans-serif !important;
-    }}
-
-    /* submit */
-    div[data-testid="stFormSubmitButton"] button {{
-        width:100% !important;padding:13px !important;
-        background:{accent} !important;color:#fff !important;
-        border:none !important;border-radius:12px !important;
-        font-size:15px !important;font-weight:700 !important;
+        color:#1e2a3a !important;
+    }
+    div[data-testid="stTextInput"] input::placeholder { color:#8a99b0 !important; }
+    div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+        box-shadow:inset 5px 5px 10px #b0b8c8, inset -5px -5px 10px #ffffff !important;
+    }
+    /* hide Streamlit's native password reveal — replaced by neomorphic pill */
+    div[data-testid="stTextInput"] button { display:none !important; }
+    div[data-testid="stTextInput"] label {
+        font-size:0.8rem !important;
+        font-weight:600 !important;
+        color:#2d3748 !important;
+        padding-left:0.5rem !important;
+        margin-bottom:0.4rem !important;
         font-family:'Inter',system-ui,sans-serif !important;
-        cursor:pointer !important;transition:opacity .15s,transform .12s !important;
-    }}
-    div[data-testid="stFormSubmitButton"] button:hover {{
-        opacity:.9 !important;transform:translateY(-1px) !important;
-    }}
+    }
+    div[data-testid="stTextInput"] { margin-bottom:0.4rem !important; }
 
-    /* remove default column gap / padding */
-    [data-testid="column"] {{ padding:0 !important; }}
+    /* neomorphic Show/Hide password pill */
+    .ordro-pw-pill {
+        position:absolute; right:10px; top:50%; transform:translateY(-50%);
+        display:flex; align-items:center; gap:0.3rem;
+        background:#e0e5ec; padding:0.25rem 0.65rem; border-radius:30px;
+        cursor:pointer; font-size:0.7rem; font-weight:600; color:#4a5b7a;
+        user-select:none; z-index:20; font-family:'Inter',system-ui,sans-serif;
+        box-shadow:inset 1px 1px 2px #b8c0ce, inset -1px -1px 2px #ffffff;
+    }
 
-    /* Tighten gap between form fields (username → password) */
-    div[data-testid="stForm"] [data-testid="stVerticalBlock"] > div {{
-        gap:6px !important;
-    }}
-    div[data-testid="stForm"] [data-testid="stVerticalBlockBorderWrapper"] > div > div {{
-        gap:6px !important;
-    }}
-    /* Reduce label bottom margin */
-    div[data-testid="stTextInput"] label {{
-        margin-bottom:2px !important;
-    }}
+    /* neomorphic submit button */
+    div[data-testid="stFormSubmitButton"] button {
+        width:100% !important;
+        padding:0.9rem !important;
+        background:#2c3e66 !important;
+        color:#fff !important;
+        border:none !important;
+        border-radius:60px !important;
+        font-size:0.95rem !important;
+        font-weight:600 !important;
+        font-family:'Inter',system-ui,sans-serif !important;
+        box-shadow:4px 4px 8px #b8c0ce, -2px -2px 6px #ffffff !important;
+        cursor:pointer !important;
+        margin-top:0.8rem !important;
+        transition:all .1s !important;
+        display:block !important;
+    }
+    div[data-testid="stFormSubmitButton"] button:hover {
+        background:#324573 !important;
+    }
+    div[data-testid="stFormSubmitButton"] button:active {
+        transform:scale(0.98) !important;
+        box-shadow:inset 2px 2px 4px #1f2c48, inset -1px -1px 3px #395084 !important;
+    }
+
+    /* tighten field spacing inside the card */
+    div[data-testid="stForm"] [data-testid="stVerticalBlock"] > div { gap:0.4rem !important; }
 
     /* alerts */
-    div[data-testid="stAlert"] {{
-        border-radius:10px !important;
+    div[data-testid="stAlert"] {
+        border-radius:18px !important;
         font-family:'Inter',system-ui,sans-serif !important;
-    }}
+        box-shadow:inset 2px 2px 5px #b8c0ce, inset -2px -2px 5px #ffffff !important;
+        background:#e0e5ec !important;
+        border:none !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Centered single column containing brand + form ─────────────────────
-    _, col, _ = st.columns([1, 1.05, 1])
+    # -- Centered single column holding the neomorphic card -----------------
+    _, col, _ = st.columns([1, 1.3, 1])
     with col:
-        # Brand card (top section only — no centering wrapper)
-        st.markdown(f"""
-        <div style="background:#fff;border-radius:22px 22px 0 0;overflow:hidden;
-                    box-shadow:0 8px 32px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);
-                    border-bottom:none;">
-            <div style="height:5px;background:linear-gradient(90deg,{accent},{accent}88);"></div>
-            <div style="padding:28px 32px 20px;">
-                <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
-                    {logo_html}
-                    <div>
-                        <div style="font-size:17px;font-weight:800;color:#0f172a;
-                                    letter-spacing:-.02em;line-height:1.2;">{business}</div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.14em;
-                                    text-transform:uppercase;color:{accent};margin-top:2px;">
-                            ORDRO · Management System</div>
-                    </div>
-                </div>
-                <div style="font-size:20px;font-weight:800;color:#0f172a;
-                            letter-spacing:-.03em;margin-bottom:2px;">Welcome back</div>
-                <div style="font-size:13px;color:#64748b;line-height:1.4;margin-bottom:0;">
-                    Sign in to manage your business</div>
-            </div>
-        </div>
-        <div style="background:#fff;border-radius:0 0 22px 22px;
-                    box-shadow:0 8px 32px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);
-                    border-top:1px solid #f1f5f9;padding:20px 32px 24px;">
-        """, unsafe_allow_html=True)
-
-        # Streamlit form inside the white card bottom section
+        # Everything lives INSIDE the form so the neomorphic card wraps it all
         with st.form("login_form", border=False):
+            # Business header: logo left, name + crimson "ordro app" wordmark right
+            st.markdown(f"""
+            <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:2rem;">
+                {logo_html}
+                <div style="display:flex;flex-direction:column;gap:0.2rem;">
+                    <div style="font-weight:800;font-size:1.9rem;letter-spacing:-0.5px;
+                                color:#1e2a3a;line-height:1.1;">{business}</div>
+                    <div style="font-weight:800;font-size:1.1rem;color:#dc143c;
+                                letter-spacing:-0.2px;">ordro app</div>
+                </div>
+            </div>
+            <div style="margin-bottom:1.4rem;">
+                <div style="font-size:1.4rem;font-weight:700;color:#1e2a3a;
+                            margin-bottom:0.4rem;">Welcome back</div>
+                <div style="font-size:0.85rem;color:#5a6e8a;">Sign in to manage your business</div>
+            </div>
+            """, unsafe_allow_html=True)
+
             username  = st.text_input("Username", placeholder="Enter your username")
             password  = st.text_input("Password", type="password",
                                       placeholder="Enter your password")
             submitted = st.form_submit_button(
-                "Sign In →", use_container_width=True, type="primary")
+                "Sign In  →", use_container_width=True, type="primary")
+
+            # Status badge + footer
+            st.markdown("""
+            <div style="text-align:center;">
+                <div style="display:inline-flex;align-items:center;gap:0.4rem;
+                            padding:0.4rem 0.9rem;background:#e0e5ec;
+                            box-shadow:inset 2px 2px 4px #b8c0ce, inset -2px -2px 4px #ffffff;
+                            border-radius:20px;font-size:0.7rem;color:#2d5a3d;
+                            margin-top:1.2rem;font-weight:500;">
+                    <span style="width:8px;height:8px;background:#48bb78;border-radius:50%;
+                                 box-shadow:0 0 6px rgba(72,187,120,0.6);"></span>
+                    <span>System online</span>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:1.6rem;font-size:0.7rem;
+                        font-weight:500;color:#5a6e8a;letter-spacing:0.3px;">
+                Powered by ORDRO &middot; Secure login</div>
+            """, unsafe_allow_html=True)
 
             if submitted:
                 user = query_df(
@@ -187,12 +237,51 @@ def login_box():
                     )
                     st.rerun()
 
-        st.markdown(
-            "<div style='text-align:center;font-size:11px;color:#94a3b8;"
-            "padding:8px 0 0;'>Powered by ORDRO · Secure login</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+    # -- Inject the neomorphic Show/Hide pill into the password field --------
+    components.html(
+        """
+        <script>
+        (function () {
+            var pdoc = window.parent.document;
+            function init(tries) {
+                tries = tries || 0;
+                var inputs = pdoc.querySelectorAll(
+                    'div[data-testid="stForm"] div[data-testid="stTextInput"]');
+                if (inputs.length < 2) {
+                    if (tries < 40) setTimeout(function(){ init(tries+1); }, 120);
+                    return;
+                }
+                var pwWrap = inputs[1];
+                if (pwWrap.querySelector('.ordro-pw-pill')) return;
+                var input = pwWrap.querySelector('input');
+                if (!input) {
+                    if (tries < 40) setTimeout(function(){ init(tries+1); }, 120);
+                    return;
+                }
+                var box = pwWrap.querySelector('div[data-baseweb="input"]')
+                          || input.parentElement;
+                box.style.position = 'relative';
+                input.style.paddingRight = '4.6rem';
+                var pill = pdoc.createElement('div');
+                pill.className = 'ordro-pw-pill';
+                pill.innerHTML = '<span>Show</span>';
+                pill.addEventListener('click', function () {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        pill.innerHTML = '<span>Hide</span>';
+                    } else {
+                        input.type = 'password';
+                        pill.innerHTML = '<span>Show</span>';
+                    }
+                });
+                box.appendChild(pill);
+            }
+            init(0);
+        })();
+        </script>
+        """,
+        height=0, width=0,
+    )
 
 
 def logout_button():
