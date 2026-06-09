@@ -78,23 +78,31 @@ def login_box():
         margin:0 auto !important;
     }
 
-    /* neomorphic inputs */
-    div[data-testid="stTextInput"] div[data-baseweb="input"],
-    div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
+    /* neomorphic inputs — single clean inset pill (outer wrapper only) */
+    div[data-testid="stTextInput"] div[data-baseweb="input"] {
         border:none !important;
         border-radius:60px !important;
         background:#e0e5ec !important;
         box-shadow:inset 4px 4px 8px #b8c0ce, inset -4px -4px 8px #ffffff !important;
-        padding:0 0.4rem !important;
+        padding:0 !important;
         overflow:hidden !important;
         position:relative !important;
+        min-height:0 !important;
+    }
+    /* inner wrapper stays a transparent pass-through (no second shadow/border) */
+    div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
+        border:none !important;
+        background:transparent !important;
+        box-shadow:none !important;
+        padding:0 !important;
     }
     div[data-testid="stTextInput"] input {
         border:none !important;
         background:transparent !important;
         box-shadow:none !important;
-        padding:0.85rem 1.1rem !important;
+        padding:0.9rem 1.2rem !important;
         font-size:0.95rem !important;
+        line-height:1.2 !important;
         font-family:'Inter',system-ui,sans-serif !important;
         color:#1e2a3a !important;
     }
