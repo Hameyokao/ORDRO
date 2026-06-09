@@ -78,36 +78,43 @@ def login_box():
         margin:0 auto !important;
     }
 
-    /* neomorphic inputs — single clean inset pill (outer wrapper only) */
-    div[data-testid="stTextInput"] div[data-baseweb="input"] {
+    /* === neomorphic inputs ============================================
+       Flatten EVERY wrapper layer first (no bg / border / shadow), then
+       paint the inset pill on ONE single element only, so the pressed-in
+       depth matches the mockup exactly and never stacks. */
+    div[data-testid="stTextInput"] [data-testid="stTextInputRootElement"],
+    div[data-testid="stTextInput"] [data-baseweb="input"],
+    div[data-testid="stTextInput"] [data-baseweb="base-input"] {
         border:none !important;
-        border-radius:60px !important;
-        background:#e0e5ec !important;
-        box-shadow:inset 4px 4px 8px #b8c0ce, inset -4px -4px 8px #ffffff !important;
-        padding:0 !important;
-        overflow:hidden !important;
-        position:relative !important;
-        min-height:0 !important;
-    }
-    /* inner wrapper stays a transparent pass-through (no second shadow/border) */
-    div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
-        border:none !important;
+        outline:none !important;
         background:transparent !important;
         box-shadow:none !important;
+        border-radius:60px !important;
         padding:0 !important;
+        min-height:0 !important;
+    }
+    /* the ONE pill layer — single inset shadow, identical to the mockup */
+    div[data-testid="stTextInput"] [data-baseweb="input"] {
+        background:#e0e5ec !important;
+        box-shadow:inset 4px 4px 8px #b8c0ce, inset -4px -4px 8px #ffffff !important;
+        position:relative !important;
     }
     div[data-testid="stTextInput"] input {
         border:none !important;
+        outline:none !important;
         background:transparent !important;
         box-shadow:none !important;
         padding:0.9rem 1.2rem !important;
+        height:auto !important;
         font-size:0.95rem !important;
         line-height:1.2 !important;
         font-family:'Inter',system-ui,sans-serif !important;
         color:#1e2a3a !important;
+        -webkit-text-fill-color:#1e2a3a !important;
     }
     div[data-testid="stTextInput"] input::placeholder { color:#8a99b0 !important; }
-    div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+    /* focus = slightly deeper inset, no coloured ring (matches mockup) */
+    div[data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
         box-shadow:inset 5px 5px 10px #b0b8c8, inset -5px -5px 10px #ffffff !important;
     }
     /* hide Streamlit's native password reveal — replaced by neomorphic pill */
