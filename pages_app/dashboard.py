@@ -119,7 +119,28 @@ def low_stock_html():
     return f"<div class='detail-heading'>Low Stock Items</div><div class='orders-grid'>{cards}</div>"
 
 
-def card_html(tab_id, title, value, note, card_class, icon, has_beacon=False, beacon_type="red"):
+def pct_delta_html(curr, prev):
+    """Green up-arrow if higher than the previous period, red down-arrow if lower."""
+    curr = float(curr or 0)
+    prev = float(prev or 0)
+    if prev == 0:
+        if curr == 0:
+            return ("<div class='dash-delta' style='font-size:11.5px;font-weight:700;"
+                    "margin-top:4px;color:#94a3b8;'>&bull; no prior data</div>")
+        return ("<div class='dash-delta' style='font-size:11.5px;font-weight:700;"
+                "margin-top:4px;color:#059669;'>&#9650; new vs prev</div>")
+    pct = (curr - prev) / prev * 100.0
+    if pct > 0:
+        arrow, color = "&#9650;", "#059669"   # up triangle, green
+    elif pct < 0:
+        arrow, color = "&#9660;", "#dc2626"   # down triangle, red
+    else:
+        arrow, color = "&bull;", "#94a3b8"
+    return (f"<div class='dash-delta' style='font-size:11.5px;font-weight:700;"
+            f"margin-top:4px;color:{color};'>{arrow} {abs(pct):.0f}% vs prev</div>")
+
+
+def card_html(tab_id, title, value, note, card_class, icon, has_beacon=False, beacon_type="red", delta_html=""):
     beacon = ""
     if has_beacon and value not in ("0", "0.00"):
         beacon = f'<span class="beacon-dot{"" if beacon_type=="red" else "-orange"}"></span>'
@@ -128,6 +149,7 @@ def card_html(tab_id, title, value, note, card_class, icon, has_beacon=False, be
         <div class="dash-icon">{icon}</div>
         <div class="dash-title">{esc(title)}{beacon}</div>
         <div class="dash-value">{esc(value)}</div>
+        {delta_html}
         <div class="dash-note">{esc(note)}</div>
     </label>
     """
@@ -481,6 +503,17 @@ def render_admin_staff_dashboard(currency):
                           (week_s.isoformat(), week_e.isoformat()))
     month_sales  = scalar("SELECT COALESCE(SUM(total),0) FROM orders WHERE strftime('%Y-%m', created_at)=? AND status!='Cancelled'",
                           (date.today().strftime("%Y-%m"),))
+
+    # ── Previous-period figures (for the +/-% vs prev indicators) ──────────
+    _yest = (date.today() - timedelta(days=1)).isoformat()
+    prev_today_sales = scalar("SELECT COALESCE(SUM(total),0) FROM orders WHERE date(created_at)=? AND status!='Cancelled'", (_yest,))
+    _lw_s, _lw_e = week_s - timedelta(days=7), week_e - timedelta(days=7)
+    prev_week_sales  = scalar("SELECT COALESCE(SUM(total),0) FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status!='Cancelled'",
+                              (_lw_s.isoformat(), _lw_e.isoformat()))
+    _prev_month = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    prev_month_sales = scalar("SELECT COALESCE(SUM(total),0) FROM orders WHERE strftime('%Y-%m', created_at)=? AND status!='Cancelled'",
+                              (_prev_month,))
+
     open_orders  = scalar(f"SELECT COUNT(*) FROM orders WHERE {open_orders_where()}")
     needs_action = scalar(f"SELECT COUNT(*) FROM orders WHERE {open_orders_where()} AND (status NOT IN ('Delivered','Completed') OR COALESCE(payment_status,'Unpaid')!='Paid')")
     low_stock    = scalar("SELECT COUNT(*) FROM products WHERE active=1 AND stock <= reorder_level")
@@ -496,9 +529,9 @@ def render_admin_staff_dashboard(currency):
     low_beacon   = int(low_stock) > 0
 
     cards = "".join([
-        card_html("dash_today_sales",  "Today's Sales",   money(today_sales, currency),  "Tap to view today's orders",        "sales-card",     svg("trending-up")),
-        card_html("dash_week_sales",   "Weekly Sales",    money(week_sales,  currency),   "Tap to view this week's orders",    "sales-card",     svg("bar-chart")),
-        card_html("dash_month_sales",  "Monthly Sales",   money(month_sales, currency),   "Tap to view this month's orders",   "sales-card",     svg("calendar")),
+        card_html("dash_today_sales",  "Today's Sales",   money(today_sales, currency),  "vs yesterday · tap for orders",     "sales-card",     svg("trending-up"), delta_html=pct_delta_html(today_sales, prev_today_sales)),
+        card_html("dash_week_sales",   "Weekly Sales",    money(week_sales,  currency),   "vs last week · tap for orders",     "sales-card",     svg("bar-chart"),   delta_html=pct_delta_html(week_sales, prev_week_sales)),
+        card_html("dash_month_sales",  "Monthly Sales",   money(month_sales, currency),   "vs last month · tap for orders",    "sales-card",     svg("calendar"),    delta_html=pct_delta_html(month_sales, prev_month_sales)),
         card_html("dash_open_orders",  "Open Orders",     f"{int(open_orders):,}",         "Tap to view open orders",           "open-card",      svg("clipboard")),
         card_html("dash_needs_action", "Needs Action",    f"{int(needs_action):,}",        "Tap to review",                     "danger-card",    svg("alert"),   has_beacon=needs_beacon, beacon_type="red"),
         card_html("dash_low_stock",    "Low Stock",       f"{int(low_stock):,}",           "Tap to view low-stock items",       "low-stock-card", svg("package"), has_beacon=low_beacon,   beacon_type="orange"),
