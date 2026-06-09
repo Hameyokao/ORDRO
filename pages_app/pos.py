@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -70,15 +71,54 @@ def _checkout_body(currency, tax_percent, ks="c"):
     st.markdown("---")
     if st.button("🗑 Clear Cart", key=f"clr_{ks}", use_container_width=True):
         st.session_state.cart = []
+        st.session_state.pos_fees = []
         st.rerun()
 
     cart_df  = pd.DataFrame(st.session_state.cart)
     subtotal = float(cart_df['subtotal'].sum())
+
+    # ── Additional fees (added ABOVE the discount) ──────────────────
+    if 'pos_fees' not in st.session_state:
+        st.session_state.pos_fees = []
+    st.markdown("##### 💵 Additional Fees")
+    fc1, fc2, fc3 = st.columns([2, 1.1, 0.9])
+    fee_type = fc1.selectbox(
+        "Fee type",
+        ["Shipping Charge", "Handling Fee", "Delivery Fee", "Service Charge", "Custom Fee"],
+        key=f"feetype_{ks}", label_visibility="collapsed")
+    fee_amt = fc2.number_input(
+        "Amount", min_value=0.0, value=0.0, step=1.0,
+        key=f"feeamt_{ks}", label_visibility="collapsed")
+    if fc3.button("➕ Add", key=f"feeadd_{ks}", use_container_width=True):
+        if fee_amt and fee_amt > 0:
+            existing = next((f for f in st.session_state.pos_fees if f['type'] == fee_type), None)
+            if existing:
+                existing['amount'] = float(fee_amt)
+            else:
+                st.session_state.pos_fees.append({"type": fee_type, "amount": float(fee_amt)})
+            st.rerun()
+        else:
+            st.toast("Enter a fee amount greater than 0.")
+    for fidx, fee in enumerate(st.session_state.pos_fees):
+        rc1, rc2, rc3 = st.columns([2, 1.1, 0.9])
+        rc1.write(fee['type'])
+        rc2.write(f"{currency} {float(fee['amount']):,.2f}")
+        if rc3.button("✕", key=f"feerm_{fidx}_{ks}", use_container_width=True):
+            st.session_state.pos_fees.pop(fidx)
+            st.rerun()
+    fees_total = float(sum(float(f['amount']) for f in st.session_state.pos_fees))
+
     discount = st.number_input("Discount", min_value=0.0, max_value=float(subtotal),
                                value=0.0, step=1.0, key=f"disc_{ks}")
-    tax    = max(0, (subtotal - discount) * tax_percent / 100)
-    total  = subtotal - discount + tax
-    profit = float(((cart_df['price'] - cart_df['cost']) * cart_df['qty']).sum() - discount)
+    # Additional fees are part of the taxable base (fees are taxed)
+    tax    = max(0, (subtotal - discount + fees_total) * tax_percent / 100)
+    total  = subtotal - discount + fees_total + tax
+    profit = float(((cart_df['price'] - cart_df['cost']) * cart_df['qty']).sum()
+                   - discount + fees_total)
+    if fees_total > 0:
+        st.caption(
+            f"Subtotal {currency} {subtotal:,.2f}  ·  Fees {currency} {fees_total:,.2f}"
+            + (f"  ·  Discount −{currency} {discount:,.2f}" if discount > 0 else ""))
     st.markdown(f"### Total: {currency} {total:,.2f}")
 
     # ── Customer section ──────────────────────────────────────────────────
@@ -216,11 +256,13 @@ def _checkout_body(currency, tax_percent, ks="c"):
             """INSERT INTO orders
             (order_no,created_at,customer_id,customer_name,customer_phone,customer_city,
              customer_address,order_type,payment_method,payment_status,subtotal,discount,
-             tax,total,profit,status,assigned_to,seller,payment_slip_no,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             tax,total,profit,status,assigned_to,seller,payment_slip_no,notes,
+             extra_fees,extra_fees_detail)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (order_no, datetime.now().isoformat(), customer_id, customer_name, phone,
              city, address, order_type, payment, "Unpaid", subtotal, discount, tax,
-             total, profit, status, assigned_to, seller, f"PS-{order_no}", notes),
+             total, profit, status, assigned_to, seller, f"PS-{order_no}", notes,
+             fees_total, json.dumps(st.session_state.get("pos_fees", []))),
         )
         for item in st.session_state.cart:
             execute(
@@ -234,6 +276,7 @@ def _checkout_body(currency, tax_percent, ks="c"):
                     (item['qty'], item['id']))
 
         st.session_state.cart = []
+        st.session_state.pos_fees = []
         log("Completed checkout", entity="order", entity_id=order_id,
             detail=f"{order_no} · {customer_name} · {currency} {total:,.2f}")
         st.success(
@@ -270,7 +313,7 @@ def render():
     st.markdown(f"""
 <style>
 /* ── Cart FAB — mobile only ───────────────────────────────── */
-@media (max-width: 768px) {{
+@media (min-width: 0px) {{
 
     /* Wrapper: fixed position circle */
     div[data-testid="stButton"]:has(button[aria-label^="\U0001f6d2️_FAB"]) {{
@@ -299,7 +342,7 @@ def render():
 /* Hide FAB on wide screens */
 @media (min-width: 769px) {{
     div[data-testid="stButton"]:has(button[aria-label^="\U0001f6d2️_FAB"]) {{
-        display: none !important;
+        display: flex !important;
     }}
 }}
 </style>
