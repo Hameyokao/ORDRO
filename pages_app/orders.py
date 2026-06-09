@@ -91,7 +91,7 @@ def _summary_row(o, currency, n_items, strip):
 
 
 def render():
-    hero("Orders", "All orders — grouped by status, easy to scan.")
+    hero("Pending Orders", "All orders — grouped by status, easy to scan.")
     currency = get_setting("currency", "MVR")
     role = st.session_state.get("view_role") or st.session_state.get("role")
     is_delivery = role == "Delivery" and st.session_state.get("role") != "Admin"

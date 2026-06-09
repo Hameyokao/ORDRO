@@ -55,13 +55,14 @@ if real_role in ("Admin", "Super Admin"):
 
 # Delivery role sees only their 3 pages — no other business data exposed
 if role == "Delivery" and real_role not in ("Admin", "Super Admin"):
-    menu = ["Dashboard", "Orders", "Delivery Board", "Completed Deliveries"]
+    # Delivery users can ONLY see their dashboard and the two delivery pages.
+    menu = ["Dashboard", "Pending Deliveries", "Completed Orders"]
 else:
     menu = ["Dashboard"]
     if has_access("Staff"):
-        menu += ["Point of Sale", "Inventory"]
+        menu += ["Point of Sale", "Inventory", "Pending Orders"]
     if has_access("Delivery"):
-        menu += ["Orders", "Delivery Board", "Completed Deliveries"]
+        menu += ["Pending Deliveries", "Completed Orders"]
     if has_access("Staff"):
         menu += ["Expenses", "Reports", "Customers", "Suppliers"]
     if real_role in ("Admin", "Super Admin") and role in ("Admin", "Super Admin"):
@@ -98,11 +99,11 @@ elif choice == "Point of Sale":         pos.render()
 elif choice == "Inventory":             inventory.render()
 elif choice == "Customers":             customers.render()
 elif choice == "Suppliers":             suppliers.render()
-elif choice == "Delivery Board":        delivery.render()
-elif choice == "Completed Deliveries":  completed_deliveries.render()
+elif choice == "Pending Deliveries":    delivery.render()
+elif choice == "Completed Orders":      completed_deliveries.render()
 elif choice == "Reports":               reports.render()
 elif choice == "Expenses":              expenses.render()
-elif choice == "Orders":                orders.render()
+elif choice == "Pending Orders":        orders.render()
 elif choice == "Activity Log":          activity_log.render()
 elif choice == "Settings":              settings.render()# ── Mobile menu auto-hide (installed into the MAIN page so it survives reloads) ─
 # A throw-away component frame gets deleted by Streamlit on every rerun, which

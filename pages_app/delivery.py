@@ -29,6 +29,76 @@ STATUS_COLOR = {
     "Completed": "#16a34a", "Cancelled": "#ef4444",
 }
 
+_PAY_PILL = {
+    "Paid":           ("#f0fdf4", "#15803d"),
+    "Unpaid":         ("#fef2f2", "#b91c1c"),
+    "Partially Paid": ("#fffbeb", "#b45309"),
+}
+_STATUS_PILL = {
+    "Pending":          ("#fff7ed", "#c2410c"),
+    "Preparing":        ("#f5f3ff", "#6d28d9"),
+    "Ready":            ("#eff6ff", "#1d4ed8"),
+    "Out for Delivery": ("#fdf2f8", "#9d174d"),
+    "Delivered":        ("#f0fdf4", "#15803d"),
+    "Completed":        ("#f0fdf4", "#15803d"),
+    "Cancelled":        ("#f1f5f9", "#475569"),
+}
+
+
+def _eh(v):
+    s = "" if v is None else str(v)
+    if s.strip().lower() == "nan":
+        s = ""
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def section_header(color, label, n):
+    return (f"<div style='display:flex;align-items:center;gap:8px;margin:20px 0 6px;'>"
+            f"<span style='width:10px;height:10px;border-radius:50%;background:{color};'></span>"
+            f"<span style='font-size:15px;font-weight:700;color:#0f172a;'>{label}</span>"
+            f"<span style='font-size:12px;color:#64748b;'>{n} order(s)</span></div>")
+
+
+def order_summary_row(o, currency, n_items, strip, urgent=False):
+    pay = str(o.get("payment_status") or "Unpaid")
+    pbg, pfg = _PAY_PILL.get(pay, ("#f1f5f9", "#475569"))
+    status = o.get("status") or "Pending"
+    sbg, sfg = _STATUS_PILL.get(status, ("#f1f5f9", "#475569"))
+    name = _eh(o.get("customer_name")) or "&mdash;"
+    phone = _eh(o.get("customer_phone"))
+    tel = "".join(c for c in str(o.get("customer_phone") or "") if c.isdigit() or c == "+")
+    phone_html = (
+        f'<a href="tel:{tel}" style="display:inline-flex;align-items:center;gap:5px;'
+        f'font-size:16px;font-weight:700;color:#2563eb;text-decoration:none;margin-top:3px;">'
+        f'&#128222; {phone}</a>'
+    ) if phone else ""
+    foot = [fmt_date(o.get("created_at"), show_time=False), f"{n_items} item(s)",
+            _eh(o.get("order_type")) or "&mdash;"]
+    if _eh(o.get("assigned_to")):
+        foot.append(f"Driver: {_eh(o.get('assigned_to'))}")
+    foot_html = " &middot; ".join(b for b in foot if b)
+    urgent_html = ('<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px;'
+                   'background:#fff7ed;color:#c2410c;">\u26a1 Urgent</span>') if urgent else ""
+    st.markdown(f"""
+<div style="display:flex;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-top:2px;">
+  <div style="width:5px;background:{strip};"></div>
+  <div style="flex:1;padding:12px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-size:14px;font-weight:700;color:#475569;">{_eh(o.get('order_no'))}</span>
+      <span style="font-size:16px;font-weight:800;color:#0f172a;">{currency} {float(o.get('total') or 0):,.2f}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-top:6px;">
+      <div><div style="font-size:18px;font-weight:800;color:#0f172a;line-height:1.2;">{name}</div>{phone_html}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:2px;">{urgent_html}
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px;background:{pbg};color:{pfg};">{_eh(pay)}</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px;background:{sbg};color:{sfg};">{_eh(status)}</span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">{foot_html}</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 
 def restore_inventory(order_id: int):
     rows = query_df("SELECT product_id, qty FROM order_items WHERE order_id=?", (order_id,))
@@ -261,26 +331,42 @@ def render_order_card(order, mode="delivery"):
 
 # ─────────────────────────────────────────────────────────────────────────────
 def render():
-    hero("Delivery Board", "Active delivery orders — urgent orders flagged on top.")
-    role     = st.session_state.get("view_role") or st.session_state.get("role")
-    username = st.session_state.get("username")
-
-    base   = ("SELECT * FROM orders WHERE order_type='Delivery' "
-              "AND status NOT IN ('Delivered','Completed','Cancelled')")
-    params = ()
-    # Delivery users see ALL active delivery orders (every driver), not only
-    # the ones assigned to them.
-
+    hero("Pending Deliveries", "Active delivery orders — grouped by stage, urgent first.")
+    currency = get_setting("currency", "MVR")
     orders = query_df(
-        base + " ORDER BY CASE WHEN LOWER(COALESCE(notes,'')) LIKE '%urgent%' THEN 0 "
-               "ELSE 1 END, created_at DESC",
-        params,
-    )
+        "SELECT * FROM orders WHERE order_type='Delivery' "
+        "AND status NOT IN ('Delivered','Completed','Cancelled') "
+        "ORDER BY CASE WHEN LOWER(COALESCE(notes,'')) LIKE '%urgent%' THEN 0 ELSE 1 END, "
+        "created_at DESC")
 
     if orders.empty:
         st.success("✓ No active delivery orders right now.")
         return
 
-    st.caption(f"{len(orders)} active order(s)")
-    for _, order in orders.iterrows():
-        render_order_card(order, mode="delivery")
+    counts = query_df("SELECT order_id, SUM(qty) AS n FROM order_items GROUP BY order_id")
+    cmap = ({int(r["order_id"]): int(r["n"] or 0) for _, r in counts.iterrows()}
+            if not counts.empty else {})
+
+    st.caption(f"{len(orders)} active delivery order(s)")
+    stages = [("Out for Delivery", "#ec4899"), ("Ready", "#3b82f6"),
+              ("Preparing", "#8b5cf6"), ("Pending", "#f97316")]
+    shown = set()
+    for stage, color in stages:
+        grp = orders[orders["status"] == stage]
+        if grp.empty:
+            continue
+        st.markdown(section_header(color, stage, len(grp)), unsafe_allow_html=True)
+        for _, o in grp.iterrows():
+            shown.add(int(o["id"]))
+            urgent = "urgent" in str(o.get("notes") or "").lower()
+            order_summary_row(o, currency, cmap.get(int(o["id"]), 0), color, urgent=urgent)
+            with st.expander("Manage order"):
+                render_order_card(o, mode="delivery")
+
+    rest = orders[~orders["id"].astype(int).isin(shown)]
+    if not rest.empty:
+        st.markdown(section_header("#64748b", "Other", len(rest)), unsafe_allow_html=True)
+        for _, o in rest.iterrows():
+            order_summary_row(o, currency, cmap.get(int(o["id"]), 0), "#64748b")
+            with st.expander("Manage order"):
+                render_order_card(o, mode="delivery")
