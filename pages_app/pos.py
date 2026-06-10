@@ -324,32 +324,18 @@ def render():
     cart_count  = len(st.session_state.cart)
     cart_total  = sum(i['subtotal'] for i in st.session_state.cart) if st.session_state.cart else 0.0
 
-    # ── Floating cart button — fixed while scrolling, draggable ─────────
-    st.markdown(f"""
-<style>
-div[data-testid="stButton"]:has(button[aria-label^="🛒 Cart"]) {{
-    position: fixed !important;
-    bottom: 28px !important;
-    right: 28px !important;
-    z-index: 99999 !important;
-    width: auto !important;
-}}
-button[aria-label^="🛒 Cart"] {{
-    border-radius: 40px !important;
-    padding: 12px 22px !important;
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    line-height: 1 !important;
-    box-shadow: 0 6px 24px rgba(0,0,0,.32) !important;
-    background: {accent} !important;
-    color: #fff !important;
-    border: none !important;
-    cursor: grab !important;
-    white-space: nowrap !important;
-}}
-button[aria-label^="🛒 Cart"]:active {{ cursor: grabbing !important; }}
-</style>
-""", unsafe_allow_html=True)
+    # ── Floating cart button ─ pinned to screen + draggable ──────
+    # The real Streamlit button keeps the checkout-dialog logic but is
+    # hidden off-screen. A JS companion builds a TRUE fixed button attached
+    # to <body> so it stays pinned while scrolling (it escapes any
+    # transformed Streamlit container) and can be dragged anywhere; a tap
+    # forwards the click to the hidden Streamlit button.
+    st.markdown(
+        '<style>div[data-testid="stButton"]:has(button[aria-label^="🛒 Cart"])'
+        '{position:absolute!important;left:-9999px!important;top:0!important;'
+        'width:1px!important;height:1px!important;overflow:hidden!important;}</style>',
+        unsafe_allow_html=True,
+    )
 
     fab_label = f"🛒 Cart {cart_count}" if cart_count else "🛒 Cart"
     if st.button(fab_label, key="pos_cart_fab", type="primary"):
@@ -358,70 +344,91 @@ button[aria-label^="🛒 Cart"]:active {{ cursor: grabbing !important; }}
         else:
             st.toast("Cart is empty — add products first.")
 
-    # Make the floating cart button draggable; remember where it is dropped.
     components.html(
         """
         <script>
         (function(){
           var root = window.parent, pdoc = root.document, KEY = 'ordro_fab_pos';
-          if(!root.__ordroFab){
-            root.__ordroFab = {dragging:false, moved:false, el:null, sx:0, sy:0, ox:0, oy:0};
-            function move(e){
-              var S = root.__ordroFab; if(!S.dragging || !S.el) return;
-              var pt = e.touches ? e.touches[0] : e, dx = pt.clientX-S.sx, dy = pt.clientY-S.sy, el = S.el;
-              if(Math.abs(dx)+Math.abs(dy) > 4) S.moved = true;
-              var nl = Math.max(4, Math.min(root.innerWidth  - el.offsetWidth  - 4, S.ox+dx));
-              var nt = Math.max(4, Math.min(root.innerHeight - el.offsetHeight - 4, S.oy+dy));
-              el.style.left = nl+'px'; el.style.top = nt+'px';
-              if(S.moved && e.cancelable) e.preventDefault();
-            }
-            function up(){
-              var S = root.__ordroFab; if(!S.dragging) return; S.dragging = false;
-              if(S.moved && S.el){
-                var r = S.el.getBoundingClientRect();
-                try{ root.localStorage.setItem(KEY, JSON.stringify({left:r.left, top:r.top})); }catch(_){}
-              }
-            }
-            pdoc.addEventListener('mousemove', move);
-            pdoc.addEventListener('mouseup', up);
-            pdoc.addEventListener('touchmove', move, {passive:false});
-            pdoc.addEventListener('touchend', up);
-          }
-          function down(e){
-            var S = root.__ordroFab, el = S.el; if(!el) return;
-            var pt = e.touches ? e.touches[0] : e, r = el.getBoundingClientRect();
-            S.dragging = true; S.moved = false; S.sx = pt.clientX; S.sy = pt.clientY; S.ox = r.left; S.oy = r.top;
-            el.style.left = r.left+'px'; el.style.top = r.top+'px'; el.style.right = 'auto'; el.style.bottom = 'auto';
-          }
-          function applyPos(el){
-            try{
-              var s = JSON.parse(root.localStorage.getItem(KEY) || 'null');
-              if(s && typeof s.left === 'number'){
-                el.style.left = s.left+'px'; el.style.top = s.top+'px';
-                el.style.right = 'auto'; el.style.bottom = 'auto';
-              }
-            }catch(e){}
-          }
+          function hiddenBtn(){ return pdoc.querySelector('button[aria-label^="🛒 Cart"]'); }
           function init(t){
             t = t || 0;
-            var el = pdoc.querySelector('div[data-testid="stButton"]:has(button[aria-label^="🛒 Cart"])');
-            if(!el){ if(t < 40) setTimeout(function(){ init(t+1); }, 120); return; }
-            root.__ordroFab.el = el; applyPos(el);
-            if(el.dataset.ordroDrag !== '1'){
-              el.dataset.ordroDrag = '1';
-              var btn = el.querySelector('button') || el;
-              btn.addEventListener('mousedown', down);
-              btn.addEventListener('touchstart', down, {passive:false});
-              el.addEventListener('click', function(e){
-                if(root.__ordroFab.moved){ e.stopPropagation(); e.preventDefault(); }
-              }, true);
+            var hb = hiddenBtn();
+            if(!hb){ if(t < 80) setTimeout(function(){ init(t+1); }, 100); return; }
+
+            // Keep the real Streamlit button out of the layout but clickable.
+            var wrap = hb.closest('div[data-testid="stButton"]');
+            if(wrap){
+              wrap.style.position='absolute'; wrap.style.left='-9999px';
+              wrap.style.top='0'; wrap.style.width='1px';
+              wrap.style.height='1px'; wrap.style.overflow='hidden';
             }
+
+            var label  = hb.getAttribute('aria-label') || '🛒 Cart';
+            var accent = root.getComputedStyle(hb).backgroundColor || '#2563eb';
+
+            var fab = pdoc.getElementById('ordroCartFab');
+            if(!fab){
+              fab = pdoc.createElement('div');
+              fab.id = 'ordroCartFab';
+              fab.setAttribute('role','button');
+              fab.style.cssText =
+                'position:fixed;z-index:2147483647;bottom:28px;right:28px;'+
+                'padding:12px 22px;border-radius:40px;'+
+                'font-family:Inter,system-ui,-apple-system,sans-serif;'+
+                'font-size:16px;font-weight:700;color:#fff;cursor:grab;'+
+                'user-select:none;white-space:nowrap;'+
+                'box-shadow:0 6px 24px rgba(0,0,0,.32);';
+              pdoc.body.appendChild(fab);
+
+              try{
+                var sv = JSON.parse(root.localStorage.getItem(KEY) || 'null');
+                if(sv && typeof sv.left === 'number'){
+                  fab.style.left=sv.left+'px'; fab.style.top=sv.top+'px';
+                  fab.style.right='auto'; fab.style.bottom='auto';
+                }
+              }catch(e){}
+
+              var dragging=false, moved=false, sx=0, sy=0, ox=0, oy=0;
+              function down(e){
+                var pt = e.touches ? e.touches[0] : e, r = fab.getBoundingClientRect();
+                dragging=true; moved=false; sx=pt.clientX; sy=pt.clientY; ox=r.left; oy=r.top;
+                fab.style.left=r.left+'px'; fab.style.top=r.top+'px';
+                fab.style.right='auto'; fab.style.bottom='auto'; fab.style.cursor='grabbing';
+              }
+              function move(e){
+                if(!dragging) return;
+                var pt = e.touches ? e.touches[0] : e, dx = pt.clientX-sx, dy = pt.clientY-sy;
+                if(Math.abs(dx)+Math.abs(dy) > 4) moved = true;
+                var nl = Math.max(4, Math.min(root.innerWidth  - fab.offsetWidth  - 4, ox+dx));
+                var nt = Math.max(4, Math.min(root.innerHeight - fab.offsetHeight - 4, oy+dy));
+                fab.style.left=nl+'px'; fab.style.top=nt+'px';
+                if(moved && e.cancelable) e.preventDefault();
+              }
+              function up(){
+                if(!dragging) return; dragging=false; fab.style.cursor='grab';
+                if(moved){
+                  var r = fab.getBoundingClientRect();
+                  try{ root.localStorage.setItem(KEY, JSON.stringify({left:r.left, top:r.top})); }catch(_){}
+                }
+              }
+              fab.addEventListener('mousedown', down);
+              pdoc.addEventListener('mousemove', move);
+              pdoc.addEventListener('mouseup', up);
+              fab.addEventListener('touchstart', down, {passive:false});
+              pdoc.addEventListener('touchmove', move, {passive:false});
+              pdoc.addEventListener('touchend', up);
+              fab.addEventListener('click', function(){
+                if(moved) return;
+                var h = hiddenBtn(); if(h) h.click();
+              });
+            }
+            fab.textContent = label;
+            fab.style.background = accent;
           }
           init(0);
         })();
         </script>
-        """,
-        height=0, width=0,
+        """, height=0, width=0,
     )
 
     # ── Main two-column layout ─────────────────────────────────────────────
