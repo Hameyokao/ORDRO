@@ -798,7 +798,7 @@ def apply_theme():
     """, unsafe_allow_html=True)
 
     # ── Neomorphic Soft full-app skin (opt-in from Settings → App Style) ──
-    if get_setting("ui_style", "Classic") == "Neomorphic Soft":
+    if st.session_state.get("logged_in") and get_setting("ui_style", "Classic") == "Neomorphic Soft":
         st.markdown(f"""
         <style>
         :root {{
@@ -934,7 +934,7 @@ def apply_theme():
 
 
     _ui = get_setting("ui_style", "Classic")
-    if _ui in PALETTE_STYLES:
+    if st.session_state.get("logged_in") and _ui in PALETTE_STYLES:
         st.markdown(palette_app_css(PALETTE_STYLES[_ui]), unsafe_allow_html=True)
 
 

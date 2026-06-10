@@ -389,16 +389,22 @@ def render():
                 var r = S.el.getBoundingClientRect();
                 try{ root.localStorage.setItem(KEY, JSON.stringify({left:r.left, top:r.top})); }catch(_){}
               }
+              pdoc.removeEventListener('mousemove', S.move, true);
+              pdoc.removeEventListener('mouseup', S.up, true);
+              pdoc.removeEventListener('touchmove', S.move, {passive:false});
+              pdoc.removeEventListener('touchend', S.up, true);
             }
-            pdoc.addEventListener('mousemove', move, true);
-            pdoc.addEventListener('mouseup', up, true);
-            pdoc.addEventListener('touchmove', move, {passive:false, capture:true});
-            pdoc.addEventListener('touchend', up, true);
+            root.__ordroFab.move = move;
+            root.__ordroFab.up = up;
           }
           function down(e){
             var S = root.__ordroFab, n = S.el; if(!n) return;
             var pt = e.touches ? e.touches[0] : e, r = n.getBoundingClientRect();
             S.dragging = true; S.moved = false; S.sx = pt.clientX; S.sy = pt.clientY; S.ox = r.left; S.oy = r.top;
+            pdoc.addEventListener('mousemove', S.move, true);
+            pdoc.addEventListener('mouseup', S.up, true);
+            pdoc.addEventListener('touchmove', S.move, {passive:false});
+            pdoc.addEventListener('touchend', S.up, true);
           }
           function applyPos(n){
             try{
