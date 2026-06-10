@@ -250,6 +250,8 @@ def init_db():
     _add_column("orders", "delivered_at TEXT")
     _add_column("expenses", "created_by TEXT")
     _add_column("expenses", "recurring INTEGER DEFAULT 0")
+    _add_column("orders", "extra_fees REAL DEFAULT 0")
+    _add_column("orders", "extra_fees_detail TEXT")
 
     seed_defaults()
     _upgrade_plaintext_passwords()

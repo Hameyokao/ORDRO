@@ -43,9 +43,11 @@ def _kpis(currency):
     rev = lambda m: float(scalar("SELECT COALESCE(SUM(total),0) FROM orders WHERE strftime('%Y-%m',created_at)=? AND status!='Cancelled'", (m,)))
     prof = lambda m: float(scalar("SELECT COALESCE(SUM(profit),0) FROM orders WHERE strftime('%Y-%m',created_at)=? AND status!='Cancelled'", (m,)))
     exp = lambda m: float(scalar("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE strftime('%Y-%m',date)=?", (m,)))
+    fee = lambda m: float(scalar("SELECT COALESCE(SUM(extra_fees),0) FROM orders WHERE strftime('%Y-%m',created_at)=? AND status!='Cancelled'", (m,)))
     r, rp = rev(ym), rev(pm)
     g, gp = prof(ym), prof(pm)
     e, ep = exp(ym), exp(pm)
+    fz, fzp = fee(ym), fee(pm)
     net, netp = g - e, gp - ep
     margin = (g / r * 100) if r else 0
     marginp = (gp / rp * 100) if rp else 0
@@ -55,8 +57,9 @@ def _kpis(currency):
         ("Expenses",       f"{currency} {e:,.0f}",   _delta(e, ep)),
         ("Net Profit",     f"{currency} {net:,.0f}", _delta(net, netp)),
         ("Profit Margin",  f"{margin:.0f}%",         _delta(margin, marginp)),
+        ("Fees Revenue",   f"{currency} {fz:,.0f}",  _delta(fz, fzp)),
     ]
-    html = "<div style='display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;margin-bottom:1rem;'>"
+    html = "<div style='display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem;margin-bottom:1rem;'>"
     for label, val, (dtxt, dcol) in cards:
         html += (f"<div style='background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:.8rem .9rem;'>"
                  f"<div style='font-size:1.25rem;font-weight:800;color:#0f172a;'>{val}</div>"

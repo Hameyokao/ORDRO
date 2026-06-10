@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 # ORDRO v13 — neomorphic login
 from .database import query_df, get_setting, verify_password, execute, hash_password, is_hashed, record_activity
-from .theme import logo_data_uri, COLORS
+from .theme import logo_data_uri, COLORS, PALETTE_STYLES, palette_login_css
 
 ROLE_ORDER = {"Delivery": 1, "Staff": 2, "Admin": 3, "Super Admin": 4}
 
@@ -177,6 +177,10 @@ def login_box():
     }
     </style>
     """, unsafe_allow_html=True)
+
+    _ui_style = get_setting("ui_style", "Classic")
+    if _ui_style in PALETTE_STYLES:
+        st.markdown(palette_login_css(PALETTE_STYLES[_ui_style]), unsafe_allow_html=True)
 
     # -- Centered single column holding the neomorphic card -----------------
     _, col, _ = st.columns([1, 1.3, 1])

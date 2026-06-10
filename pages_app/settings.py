@@ -2,7 +2,7 @@ from datetime import datetime
 import sqlite3
 import streamlit as st
 from components.database import query_df, execute, get_setting, set_setting, UPLOAD_DIR, hash_password
-from components.theme import hero, THEMES, COLORS, BANNER_THEMES
+from components.theme import hero, THEMES, COLORS, BANNER_THEMES, PALETTE_STYLES
 from components.auth import has_access
 from components.activity import log
 
@@ -94,7 +94,7 @@ def render():
     with st.container(border=True):
         _section("Theme, Colour & Banner")
         with st.form("theme_form"):
-            ui_style_opts = ["Classic", "Neomorphic Soft"]
+            ui_style_opts = ["Classic", "Neomorphic Soft"] + list(PALETTE_STYLES.keys())
             cur_ui_style = get_setting("ui_style", "Classic")
             ui_style = st.selectbox(
                 "App Style",
